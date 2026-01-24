@@ -1,5 +1,6 @@
 Django>=4.2
 psycopg2-binary
+numpy<2.0
 openpyxl
 pandas
 django-import-export

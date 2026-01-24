@@ -30,7 +30,6 @@ DEFAULT_PROCUREMENT_TYPES = [
 DEFAULT_GROUPS = {
     "System Admin": "all",
     "User Manager": [
-        "auth.user",
         "accounts.user",
         "accounts.cluster",
     ],
@@ -127,12 +126,17 @@ class Command(BaseCommand):
                 perms = self._collect_permissions(model_list)
             group.permissions.set(perms)
             group.save()
-            self.stdout.write(f"Group: {group.name} ({'created' if created else 'updated'}) with {perms.count()} perms")
+            perm_count = perms.count() if hasattr(perms, 'count') else len(perms)
+            self.stdout.write(f"Group: {group.name} ({'created' if created else 'updated'}) with {perm_count} perms")
 
     def _collect_permissions(self, model_labels):
-        perms = []
+        from django.db.models import Q
+        q_objects = Q()
         for label in model_labels:
             app_label, model_name = label.split(".")
-            content_type = ContentType.objects.get(app_label=app_label, model=model_name.split(".")[-1])
-            perms.extend(Permission.objects.filter(content_type=content_type))
-        return perms
+            try:
+                content_type = ContentType.objects.get(app_label=app_label, model=model_name.lower())
+                q_objects |= Q(content_type=content_type)
+            except ContentType.DoesNotExist:
+                self.stdout.write(self.style.WARNING(f"ContentType not found: {app_label}.{model_name}"))
+        return Permission.objects.filter(q_objects)
