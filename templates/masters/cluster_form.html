@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit Cluster{% else %}Add Cluster{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'settings' %}">Settings</a></li>
+<li class="breadcrumb-item"><a href="{% url 'masters:cluster_list' %}">Clusters</a></li>
+<li class="breadcrumb-item active" aria-current="page">{% if is_edit %}Edit{% else %}Add{% endif %}</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <h1 class="page-title">
+        <i class="bi bi-{% if is_edit %}pencil-square{% else %}plus-circle{% endif %} me-2"></i>
+        {% if is_edit %}Edit Cluster{% else %}Add New Cluster{% endif %}
+    </h1>
+</div>
+<!-- Form Card -->
+<div class="card">
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label class="form-label fw-medium">Short Name <span class="text-danger">*</span></label>
+                <input 
+                    type="text" 
+                    name="short_name" 
+                    class="form-control" 
+                    value="{% if is_edit %}{{ cluster.short_name }}{% endif %}" 
+                    required 
+                    {% if is_edit %}readonly{% endif %}
+                    placeholder="e.g., ICT, HR, FIN"
+                >
+                <div class="form-text">Abbreviation or acronym (cannot be changed after creation)</div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-medium">Full Name <span class="text-danger">*</span></label>
+                <input 
+                    type="text" 
+                    name="full_name" 
+                    class="form-control" 
+                    value="{% if is_edit %}{{ cluster.full_name }}{% endif %}" 
+                    required
+                    placeholder="Full cluster or department name"
+                >
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{% url 'masters:cluster_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-1"></i>{% if is_edit %}Update{% else %}Create{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

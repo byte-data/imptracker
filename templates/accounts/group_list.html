@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Roles & Groups{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Roles</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h1 class="page-title">
+        <i class="bi bi-shield-check me-2"></i>Roles & Permissions
+      </h1>
+      <p class="page-subtitle text-muted mb-0">Manage user roles and access permissions</p>
+    </div>
+    <a href="{% url 'accounts:group_create' %}" class="btn btn-primary">
+      <i class="bi bi-plus-circle me-2"></i>Create Role
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h5 class="card-title mb-0">
+      <i class="bi bi-table me-2"></i>All Roles
+    </h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle" id="groupsTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Users</th>
+            <th>Permissions</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in groups %}
+          <tr>
+            <td><strong>{{ g.name }}</strong></td>
+            <td>{{ g.user_set.count }}</td>
+            <td>
+              {% if g.permissions.count > 0 %}
+                {% for p in g.permissions.all|slice:":3" %}
+                  <span class="badge bg-light text-dark">{{ p.content_type.app_label }}.{{ p.codename }}</span>
+                {% endfor %}
+                {% if g.permissions.count > 3 %}
+                  <span class="badge bg-secondary">+{{ g.permissions.count|add:"-3" }} more</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">No permissions</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{% url 'accounts:group_edit' g.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+              <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ g.pk }}">
+                Delete
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted">No roles defined</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% for g in groups %}
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal{{ g.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ g.pk }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel{{ g.pk }}">Confirm Deletion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete the role "<strong>{{ g.name }}</strong>"? This action cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <form method="post" action="{% url 'accounts:group_delete' g.pk %}">
+          {% csrf_token %}
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block page_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('groupsTable')) {
+    new DataTable('#groupsTable', {pageLength: 25, order:[[0,'asc']], columnDefs:[{orderable:false, targets:[2,3]}]});
+  }
+});
+</script>
+{% endblock %}

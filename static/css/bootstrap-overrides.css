@@ -1,0 +1,125 @@
+/**
+ * Bootstrap 5 Theme Overrides
+ * 
+ * Purpose: Customize Bootstrap variables and theme colors
+ * Keep this file minimal - only theme-level customizations
+ */
+
+:root {
+  /* Primary Color Palette - Professional Blue */
+  --bs-primary: #2563eb;
+  --bs-primary-rgb: 37, 99, 235;
+  --bs-secondary: #64748b;
+  --bs-secondary-rgb: 100, 116, 139;
+  
+  /* Success, Warning, Danger, Info */
+  --bs-success: #10b981;
+  --bs-warning: #f59e0b;
+  --bs-danger: #ef4444;
+  --bs-info: #06b6d4;
+  
+  /* Neutral Grays */
+  --bs-light: #f8fafc;
+  --bs-dark: #1e293b;
+  --bs-gray-100: #f1f5f9;
+  --bs-gray-200: #e2e8f0;
+  --bs-gray-300: #cbd5e1;
+  --bs-gray-400: #94a3b8;
+  --bs-gray-500: #64748b;
+  --bs-gray-600: #475569;
+  --bs-gray-700: #334155;
+  --bs-gray-800: #1e293b;
+  --bs-gray-900: #0f172a;
+  
+  /* Border and Shadows - Flat Design */
+  --bs-border-radius: 0.375rem;
+  --bs-border-radius-sm: 0.25rem;
+  --bs-border-radius-lg: 0.5rem;
+  --bs-border-color: #e2e8f0;
+  
+  /* Minimal shadows for flat design */
+  --box-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --box-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  
+  /* Typography */
+  --bs-body-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --bs-body-font-size: 0.9375rem;
+  --bs-body-line-height: 1.6;
+  --bs-body-color: #1e293b;
+  --bs-body-bg: #f8fafc;
+  
+  /* Link Colors */
+  --bs-link-color: #2563eb;
+  --bs-link-hover-color: #1d4ed8;
+}
+
+/* Override Bootstrap primary button */
+.btn-primary {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+
+/* Override Bootstrap cards for flat design */
+.card {
+  border: 1px solid var(--bs-border-color);
+  box-shadow: var(--box-shadow-sm);
+}
+
+.card-header {
+  background-color: var(--bs-light);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Override form controls for cleaner look */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+}
+
+/* Override navbar for flat design */
+.navbar {
+  box-shadow: var(--box-shadow-sm);
+}
+
+/* Override alert styling for flat design */
+.alert {
+  border-left-width: 4px;
+  border-radius: var(--bs-border-radius);
+}
+
+/* Override badge styling */
+.badge {
+  font-weight: 500;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--bs-border-radius-sm);
+}
+
+/* Override table styling */
+.table {
+  color: var(--bs-body-color);
+}
+
+.table-hover tbody tr:hover {
+  background-color: var(--bs-gray-100);
+}
+
+/* Override breadcrumb */
+.breadcrumb {
+  background-color: transparent;
+  padding: 0;
+  margin-bottom: 1.5rem;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+  color: var(--bs-gray-400);
+}

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+{% load account_tags %}
+
+{% block title %}Activities List{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Activities</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-list-task me-2"></i>Activities
+            </h1>
+            <p class="page-subtitle text-muted mb-0">View and manage all implementation activities</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'procurement_list' %}" class="btn btn-outline-warning">
+                <i class="bi bi-cart me-1"></i>Procurement View
+            </a>
+            {% if request.user.is_superuser or request.user.is_staff or request.user|has_role:"Activity Manager" or request.user|has_role:"System Admin" or request.user|has_role:"Data Manager" %}
+            <a href="{% url 'upload_activities' %}" class="btn btn-outline-info">
+                <i class="bi bi-upload me-1"></i>Bulk Upload
+            </a>
+            {% endif %}
+            <a href="{% url 'create_activity' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>New Activity
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if activities %}
+<!-- Activities Table Card -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-table me-2"></i>All Activities
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="data-table" class="table table-hover align-middle" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Clusters</th>
+                        <th>Status</th>
+                        <th>Planned Month</th>
+                        <th>Quarter</th>
+                        <th>Responsible Officer</th>
+                        <th>Budget</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in activities %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'activity_detail' activity.pk %}" class="text-decoration-none fw-medium">
+                                {{ activity.activity_id }}
+                            </a>
+                        </td>
+                        <td>{{ activity.name }}</td>
+                        <td>
+                            {% for cluster in activity.clusters.all %}
+                                <span class="badge bg-secondary me-1">{{ cluster.short_name }}</span>
+                            {% empty %}
+                                <span class="text-muted">—</span>
+                            {% endfor %}
+                        </td>
+                        <td><span class="badge bg-primary">{{ activity.status.name }}</span></td>
+                        <td>
+                            <i class="bi bi-calendar3 me-1 text-muted"></i>
+                            {{ activity.planned_month|date:"M Y"|default:"Not set" }}
+                        </td>
+                        <td>
+                            {% if activity.quarter %}
+                                <span class="badge bg-info">Q{{ activity.quarter }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if activity.responsible_officer %}
+                                {% if activity.responsible_officer.get_full_name %}
+                                    {{ activity.responsible_officer.get_full_name }}
+                                {% else %}
+                                    {{ activity.responsible_officer.username }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Not assigned</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-medium">
+                            {{ activity.currency.code|default:"ZMK" }} {{ activity.total_budget|floatformat:2|intcomma|default:"0" }}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'activity_detail' activity.pk %}" class="btn btn-outline-info" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'edit_activity' activity.pk %}" class="btn btn-outline-primary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Empty State -->
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                </div>
+                <h3 class="mb-3">No Activities Found</h3>
+                <p class="text-muted mb-4 fs-5">
+                    Get started by creating your first activity or upload multiple activities at once.
+                </p>
+                <div class="d-flex gap-3 justify-content-center flex-wrap">
+                    <a href="{% url 'create_activity' %}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle me-2"></i>Create Activity
+                    </a>
+                    {% if request.user.is_superuser or request.user.is_staff or request.user|has_role:"Activity Manager" or request.user|has_role:"System Admin" or request.user|has_role:"Data Manager" %}
+                    <a href="{% url 'upload_activities' %}" class="btn btn-success btn-lg">
+                        <i class="bi bi-cloud-upload me-2"></i>Bulk Upload
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="mt-4">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Use bulk upload to import multiple activities from Excel or CSV files
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block page_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    new DataTable('#data-table', {
+        responsive: true,
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        order: [[4, 'desc']],
+        columnDefs: [
+            { orderable: false, targets: 8 }
+        ],
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search activities...",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ activities",
+            infoEmpty: "Showing 0 to 0 of 0 activities",
+            infoFiltered: "(filtered from _MAX_ total activities)",
+            zeroRecords: "No matching activities found"
+        }
+    });
+});
+</script>
+{% endblock %}

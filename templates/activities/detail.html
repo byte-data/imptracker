@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Activity Details{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'activities_list' %}">Activities</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ activity.activity_id }}</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="page-title">Activity ID: {{ activity.activity_id }}</h1>
+            <p class="page-subtitle text-muted mb-0">
+                {{ activity.name }}
+            </p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'edit_activity' activity.pk %}" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                <i class="bi bi-trash me-1"></i>Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column -->
+    <div class="col-lg-8">
+        <!-- Main Details Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Activity Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="detail-group mb-3">
+                            <label class="detail-label">Year</label>
+                            <div><span class="badge bg-success">{{ activity.year }}</span></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-group mb-3">
+                            <label class="detail-label">Status</label>
+                            <div>
+                                <span class="badge bg-primary" id="status-display">{{ activity.status.name }}</span>
+                                {% if perms.activities.change_activity or user == activity.responsible_officer %}
+                                <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#statusModal" title="Edit status">
+                                    <i class="bi bi-pencil-square text-primary"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-group mb-3">
+                            <label class="detail-label">Clusters</label>
+                            <div>
+                                {% if activity.clusters.all %}
+                                    {% for cluster in activity.clusters.all %}
+                                        <span class="badge bg-secondary me-1">{{ cluster.short_name }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">None</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="detail-group mb-3">
+                            <label class="detail-label">Funders</label>
+                            <div>
+                                {% for funder in activity.funders.all %}
+                                    <span class="badge bg-info me-1">{{ funder.name }}</span>
+                                {% empty %}
+                                    <span class="text-muted">None</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-group mb-3">
+                            <label class="detail-label">Responsible Officer</label>
+                            <div class="d-flex align-items-center">
+                                <p class="detail-value mb-0" id="officer-display">
+                                    {% if activity.responsible_officer %}
+                                        {% if activity.responsible_officer.get_full_name %}
+                                            {{ activity.responsible_officer.get_full_name }}
+                                        {% else %}
+                                            {{ activity.responsible_officer.username }}
+                                        {% endif %}
+                                    {% else %}
+                                        Not assigned
+                                    {% endif %}
+                                </p>
+                                {% if perms.activities.change_activity %}
+                                <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#officerModal" title="Assign officer">
+                                    <i class="bi bi-pencil-square text-primary"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-group">
+                    <label class="detail-label">Notes
+                        {% if perms.activities.change_activity or user == activity.responsible_officer %}
+                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#notesModal" title="Edit notes">
+                            <i class="bi bi-pencil-square text-primary"></i>
+                        </button>
+                        {% endif %}
+                    </label>
+                    <p class="detail-value mb-0" id="notes-display">{{ activity.notes|linebreaksbr|default:"No notes provided" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attachments Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-paperclip me-2"></i>Attachments</h5>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#attachmentModal">
+                    <i class="bi bi-plus-lg me-1"></i> Add Attachment
+                </button>
+            </div>
+            <div class="card-body">
+                {% if activity.attachments.all %}
+                    <ul class="list-group list-group-flush">
+                        {% for attachment in activity.attachments.all %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{{ attachment.file.url }}" target="_blank">{{ attachment.file.name|cut:"activity_attachments/" }}</a>
+                                <small class="d-block text-muted">Uploaded on {{ attachment.uploaded_at|date:"d M Y" }}</small>
+                            </div>
+                            <form method="post" action="{% url 'delete_attachment' attachment.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this attachment?');">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No attachments for this activity.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Audit Trail Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Activity History</h5>
+            </div>
+            <div class="card-body">
+                {% if audit_logs %}
+                    <div class="timeline">
+                        {% for log in audit_logs %}
+                        <div class="timeline-item mb-3">
+                            <div class="d-flex">
+                                <div class="flex-shrink-0">
+                                    <div class="timeline-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                        <i class="bi bi-{% if 'Created' in log.action %}plus{% elif 'Updated' in log.action %}pencil{% elif 'Deleted' in log.action %}trash{% else %}circle{% endif %} small"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">{{ log.action }}</h6>
+                                            <p class="text-muted small mb-1">{{ log.change_description }}</p>
+                                            <small class="text-muted">
+                                                <i class="bi bi-person me-1"></i>{{ log.user.get_full_name|default:log.user.username }}
+                                                <i class="bi bi-clock ms-2 me-1"></i>{{ log.timestamp|date:"d M Y, H:i" }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No activity history available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-lg-4">
+        <!-- Financials Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-cash-coin me-2"></i>Financials</h5>
+            </div>
+            <div class="card-body">
+                <div class="detail-group mb-3">
+                    <label class="detail-label">Total Budget</label>
+                    <p class="detail-value mb-0 fs-5">
+                        {{ activity.currency.code|default:"ZMK" }} {{ activity.total_budget|floatformat:2|intcomma|default:"0" }}
+                    </p>
+                </div>
+                <div class="detail-group {% if activity.procurement_breakdowns %}mb-3{% endif %}">
+                    <label class="detail-label">Disbursed Amount</label>
+                    <p class="detail-value mb-0">
+                        {{ activity.currency.code|default:"ZMK" }} {{ activity.disbursed_amount|floatformat:2|intcomma|default:"0" }}
+                    </p>
+                </div>
+                {% if activity.procurement_breakdowns %}
+                <div class="detail-group">
+                    <label class="detail-label">Procurement Total</label>
+                    <p class="detail-value mb-0 text-primary">
+                        {{ activity.currency.code|default:"ZMK" }} {{ activity.procurement_amount|floatformat:2|intcomma|default:"0" }}
+                    </p>
+                    <a href="{% url 'procurement_detail' activity.pk %}" class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="bi bi-eye me-1"></i>View Procurement Details
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Dates Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-calendar3 me-2"></i>Timeline</h5>
+            </div>
+            <div class="card-body">
+                <div class="detail-group mb-3">
+                    <label class="detail-label">Planned Month</label>
+                    <p class="detail-value mb-0">{{ activity.planned_month|date:"F Y"|default:"Not set" }}</p>
+                </div>
+                {% if activity.actual_start_date %}
+                <div class="detail-group mb-3">
+                    <label class="detail-label">Actual Start</label>
+                    <p class="detail-value mb-0">{{ activity.actual_start_date|date:"d M Y" }}</p>
+                </div>
+                {% endif %}
+                {% if activity.actual_completion_date %}
+                <div class="detail-group">
+                    <label class="detail-label">Actual Completion</label>
+                    <p class="detail-value mb-0">{{ activity.actual_completion_date|date:"d M Y" }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Additional Info Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-info-square me-2"></i>Additional Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="detail-group mb-3">
+                    <label class="detail-label">Quarter</label>
+                    <p class="detail-value mb-0">{{ activity.quarter|default:"Not specified" }}</p>
+                </div>
+                {% if activity.is_recurring %}
+                <div class="detail-group mb-3">
+                    <label class="detail-label">Recurrence</label>
+                    <p class="detail-value mb-0">
+                        <span class="badge bg-info">Recurring Activity</span><br>
+                        <small>{{ activity.get_recurrence_pattern_display }} (Every {{ activity.recurrence_interval }} period(s))</small>
+                    </p>
+                </div>
+                {% endif %}
+                {% if activity.is_procurement or activity.has_partial_procurement %}
+                <div class="detail-group">
+                    <label class="detail-label">Procurement</label>
+                    <p class="detail-value mb-0">
+                        {% if activity.is_procurement %}
+                            <span class="badge bg-success">Full Procurement Activity</span>
+                        {% else %}
+                            <span class="badge bg-warning">Partial Procurement</span>
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the activity: <strong>{{ activity.name }}</strong>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <form action="{% url 'delete_activity' activity.pk %}" method="post">
+                    {% csrf_token %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Attachment Modal -->
+<div class="modal fade" id="attachmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Attachment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="attachmentForm" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="attachmentFile" class="form-label">Select Document (PDF, Word, or Excel)</label>
+                        <input class="form-control" type="file" name="file" id="attachmentFile" accept=".pdf,.docx,.doc,.xlsx,.xls" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="documentType" class="form-label">Document Type</label>
+                        <select class="form-select" name="document_type" id="documentType" required>
+                            <option value="">Select document type...</option>
+                            <option value="report">Technical Report</option>
+                            <option value="proposal">Proposal Document</option>
+                            <option value="invoice">Invoice</option>
+                            <option value="receipt">Receipt</option>
+                            <option value="other">Other Document</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="documentDescription" class="form-label">Description (Optional)</label>
+                        <textarea class="form-control" name="description" id="documentDescription" rows="3" placeholder="Brief description of the document"></textarea>
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Status Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Activity Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="statusForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="statusSelect" class="form-label">Status</label>
+                        <select class="form-select" id="statusSelect" name="status" required>
+                            <option value="">Select status...</option>
+                            {% for status in all_statuses %}
+                            <option value="{{ status.id }}" {% if status.id == activity.status.id %}selected{% endif %}>
+                                {{ status.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="alert alert-info alert-sm mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Changing the status will be logged in the activity history.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveStatusBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Responsible Officer Modal -->
+<div class="modal fade" id="officerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Responsible Officer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="officerForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="officerSelect" class="form-label">Responsible Officer</label>
+                        <select class="form-select" id="officerSelect" name="responsible_officer">
+                            <option value="">Not assigned</option>
+                            {% for user in all_users %}
+                            <option value="{{ user.id }}" {% if activity.responsible_officer and user.id == activity.responsible_officer.id %}selected{% endif %}>
+                                {% if user.get_full_name %}
+                                    {{ user.get_full_name }} ({{ user.username }})
+                                {% else %}
+                                    {{ user.username }}
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="alert alert-info alert-sm mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        The assigned officer will receive notifications about this activity.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveOfficerBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Notes Modal -->
+<div class="modal fade" id="notesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Activity Notes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="notesForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="notesTextarea" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notesTextarea" name="notes" rows="6">{{ activity.notes }}</textarea>
+                        <small class="text-muted">Add any relevant notes or comments about this activity.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveNotesBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_js %}
+<script>
+$(document).ready(function() {
+    const activityId = {{ activity.pk }};
+    
+    // Handle attachment upload
+    $('#attachmentForm').submit(function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.text();
+        
+        // Disable button and show loading
+        submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Uploading...');
+        
+        $.ajax({
+            url: `/activities/${activityId}/attachments/upload/`,
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    // Close modal
+                    const attachmentModal = bootstrap.Modal.getInstance(document.getElementById('attachmentModal'));
+                    attachmentModal.hide();
+                    
+                    // Show success message and reload
+                    showAlert('success', response.message || 'Document uploaded successfully');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    // Show error messages
+                    let errorMsg = 'Upload failed: ';
+                    if (response.errors) {
+                        errorMsg += Object.values(response.errors).join(', ');
+                    } else {
+                        errorMsg += response.error || 'Unknown error';
+                    }
+                    showAlert('danger', errorMsg);
+                    submitBtn.prop('disabled', false).text(originalText);
+                }
+            },
+            error: function(xhr) {
+                let errorMsg = 'An error occurred during upload';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.errors) {
+                        errorMsg = Object.values(xhr.responseJSON.errors).join(', ');
+                    } else if (xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    }
+                }
+                showAlert('danger', errorMsg);
+                submitBtn.prop('disabled', false).text(originalText);
+            }
+        });
+    });
+    
+    // Update Status
+    $('#saveStatusBtn').click(function() {
+        const statusId = $('#statusSelect').val();
+        if (!statusId) {
+            alert('Please select a status');
+            return;
+        }
+        
+        // Close modal immediately
+        const statusModal = bootstrap.Modal.getInstance(document.getElementById('statusModal'));
+        statusModal.hide();
+        
+        $.ajax({
+            url: `/activities/${activityId}/update-field/`,
+            method: 'POST',
+            data: {
+                field: 'status',
+                value: statusId,
+                csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#status-display').text(response.display_value);
+                    showAlert('success', 'Status updated successfully');
+                    // Reload to update audit trail
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', response.error || 'Failed to update status');
+                }
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred. Please try again.');
+            }
+        });
+    });
+    
+    // Update Responsible Officer
+    $('#saveOfficerBtn').click(function() {
+        const officerId = $('#officerSelect').val();
+        
+        // Close modal immediately
+        const officerModal = bootstrap.Modal.getInstance(document.getElementById('officerModal'));
+        officerModal.hide();
+        
+        $.ajax({
+            url: `/activities/${activityId}/update-field/`,
+            method: 'POST',
+            data: {
+                field: 'responsible_officer',
+                value: officerId,
+                csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#officer-display').text(response.display_value || 'Not assigned');
+                    showAlert('success', 'Responsible officer updated successfully');
+                    // Reload to update audit trail
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', response.error || 'Failed to update responsible officer');
+                }
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred. Please try again.');
+            }
+        });
+    });
+    
+    // Update Notes
+    $('#saveNotesBtn').click(function() {
+        const notes = $('#notesTextarea').val();
+        
+        // Close modal immediately
+        const notesModal = bootstrap.Modal.getInstance(document.getElementById('notesModal'));
+        notesModal.hide();
+        
+        $.ajax({
+            url: `/activities/${activityId}/update-field/`,
+            method: 'POST',
+            data: {
+                field: 'notes',
+                value: notes,
+                csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    const displayText = notes || 'No notes provided';
+                    $('#notes-display').html(displayText.replace(/\n/g, '<br>'));
+                    showAlert('success', 'Notes updated successfully');
+                    // Reload to update audit trail
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', response.error || 'Failed to update notes');
+                }
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred. Please try again.');
+            }
+        });
+    });
+    
+    // Helper function to show alerts
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        $('.page-header').after(alertHtml);
+        
+        // Auto-dismiss after 3 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut('slow', function() {
+                $(this).remove();
+            });
+        }, 3000);
+    }
+});
+</script>
+{% endblock %}

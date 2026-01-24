@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Procurement Type Management{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'settings' %}">Masters</a></li>
+<li class="breadcrumb-item active" aria-current="page">Procurement Types</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Procurement Type Management</h1>
+    <div>
+        <div class="form-check form-switch d-inline-block me-3">
+            <input class="form-check-input" type="checkbox" id="showInactive" {% if show_inactive %}checked{% endif %} onchange="window.location.href='?show_inactive=' + (this.checked ? '1' : '')">
+            <label class="form-check-label" for="showInactive">Show Inactive</label>
+        </div>
+        <a href="{% url 'masters:procurement_type_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Add Procurement Type
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">All Procurement Types</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="data-table" class="table table-striped table-hover" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Active</th>
+                        <th>Default</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ptype in types %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ ptype.code }}</span></td>
+                        <td>{{ ptype.name }}</td>
+                        <td>
+                            {% if ptype.active %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ptype.is_default %}
+                                <span class="badge bg-primary"><i class="bi bi-star-fill me-1"></i>Default</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'masters:procurement_type_edit' ptype.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil-fill"></i> Edit
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal" data-id="{{ ptype.pk }}" data-name="{{ ptype.name }}">
+                                <i class="bi bi-trash-fill"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete the procurement type: <strong id="deleteItemName"></strong>? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <form id="deleteForm" method="post">
+                    {% csrf_token %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize DataTable
+    new DataTable('#data-table', {
+        responsive: true,
+        pageLength: 15,
+        lengthChange: false,
+        searching: true,
+        order: [[1, 'asc']],
+        language: {
+            search: "Search:",
+            paginate: {
+                first: "First",
+                last: "Last",
+                next: "Next",
+                previous: "Previous"
+            }
+        }
+    });
+    
+    // Handle delete modal
+    const deleteModal = document.getElementById('deleteModal');
+    deleteModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const id = button.getAttribute('data-id');
+        const name = button.getAttribute('data-name');
+        
+        const modalBody = deleteModal.querySelector('#deleteItemName');
+        modalBody.textContent = name;
+        
+        const form = deleteModal.querySelector('#deleteForm');
+        form.action = "{% url 'masters:procurement_type_delete' 0 %}".replace('0', id);
+    });
+});
+</script>
+{% endblock %}

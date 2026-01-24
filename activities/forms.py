@@ -1,0 +1,213 @@
+from django import forms
+from .models import Activity, ActivityAttachment
+from masters.models import Funder, ActivityStatus, Currency, ProcurementType
+from accounts.models import Cluster, User
+from datetime import date
+
+
+class ActivityForm(forms.ModelForm):
+    """Form for creating and editing activities with role-based field restrictions"""
+    
+    clusters = forms.ModelMultipleChoiceField(
+        queryset=Cluster.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Clusters"
+    )
+    
+    funders = forms.ModelMultipleChoiceField(
+        queryset=Funder.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Funders"
+    )
+    
+    class Meta:
+        model = Activity
+        fields = [
+            'name', 'year', 'clusters', 'funders', 'status', 
+            'planned_month', 'total_budget', 'disbursed_amount', 
+            'currency', 'responsible_officer', 'notes',
+            # Recurrence fields
+            'is_recurring', 'recurrence_pattern', 'recurrence_interval', 'recurrence_end_date',
+            # Procurement fields
+            'is_procurement', 'procurement_type', 'procurement_amount',
+        ]
+        widgets = {
+            'name': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'Activity name/description'}),
+            'year': forms.NumberInput(attrs={'class': 'form-control', 'min': 2020, 'max': 2050}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'planned_month': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'total_budget': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+            'disbursed_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+            'currency': forms.Select(attrs={'class': 'form-select'}),
+            'responsible_officer': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Additional notes'}),
+            # Recurrence
+            'is_recurring': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'recurrence_pattern': forms.Select(attrs={'class': 'form-select'}),
+            'recurrence_interval': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'placeholder': 'Every N periods'}),
+            'recurrence_end_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            # Procurement
+            'is_procurement': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'procurement_type': forms.Select(attrs={'class': 'form-select'}),
+            'procurement_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+        }
+        labels = {
+            'name': 'Activity Name',
+            'year': 'Year',
+            'status': 'Implementation Status',
+            'planned_month': 'Planned Month',
+            'total_budget': 'Total Budget',
+            'disbursed_amount': 'Disbursed Amount',
+            'currency': 'Currency',
+            'responsible_officer': 'Responsible Officer',
+            'notes': 'Notes',
+            # Recurrence
+            'is_recurring': 'This is a recurring activity',
+            'recurrence_pattern': 'Recurrence Pattern',
+            'recurrence_interval': 'Repeat Every (N periods)',
+            'recurrence_end_date': 'Stop Recurring After (optional)',
+            # Procurement
+            'is_procurement': 'This is a procurement',
+            'procurement_type': 'Procurement Type',
+            'procurement_amount': 'Procurement Amount',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter to only show active procurement types
+        self.fields['procurement_type'].queryset = ProcurementType.objects.filter(active=True)
+        # Set default procurement type if one is marked as default
+        if not self.instance.pk:  # Only for new activities
+            default_type = ProcurementType.objects.filter(is_default=True, active=True).first()
+            if default_type:
+                self.fields['procurement_type'].initial = default_type
+
+    def clean(self):
+        super().clean()
+        # Validate budget amounts
+        total_budget = self.cleaned_data.get('total_budget')
+        disbursed_amount = self.cleaned_data.get('disbursed_amount')
+        
+        if total_budget is None:
+            raise forms.ValidationError("Total budget is required.")
+        if total_budget < 0:
+            raise forms.ValidationError("Total budget must be non-negative.")
+        if disbursed_amount and disbursed_amount < 0:
+            raise forms.ValidationError("Disbursed amount must be non-negative.")
+        if disbursed_amount and disbursed_amount > total_budget:
+            raise forms.ValidationError("Disbursed amount cannot exceed total budget.")
+        
+        # Validate procurement fields
+        procurement_amount = self.cleaned_data.get('procurement_amount')
+        is_procurement = self.cleaned_data.get('is_procurement')
+        procurement_type = self.cleaned_data.get('procurement_type')
+        
+        if procurement_amount is not None:
+            if procurement_amount < 0:
+                raise forms.ValidationError("Procurement amount must be non-negative.")
+            if procurement_amount > total_budget:
+                raise forms.ValidationError("Procurement amount cannot exceed total budget.")
+            if procurement_amount > 0 and not procurement_type:
+                raise forms.ValidationError("Procurement type is required when procurement amount is set.")
+        
+        # Validate recurrence fields
+        is_recurring = self.cleaned_data.get('is_recurring')
+        recurrence_pattern = self.cleaned_data.get('recurrence_pattern')
+        recurrence_interval = self.cleaned_data.get('recurrence_interval')
+        
+        if is_recurring:
+            if not recurrence_pattern:
+                raise forms.ValidationError("Recurrence pattern is required when recurring is enabled.")
+            if recurrence_interval is None or recurrence_interval < 1:
+                raise forms.ValidationError("Recurrence interval must be at least 1.")
+        
+        return self.cleaned_data
+
+
+class BulkActionForm(forms.Form):
+    """Form for bulk operations on activities"""
+    
+    ACTION_CHOICES = (
+        ('update_status', 'Update Status'),
+        ('delete', 'Mark as Deleted'),
+        ('assign_officer', 'Assign Officer'),
+    )
+    
+    action = forms.ChoiceField(
+        choices=ACTION_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Action'
+    )
+    
+    status = forms.ModelChoiceField(
+        queryset=ActivityStatus.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='New Status (for status updates)'
+    )
+    
+    responsible_officer = forms.ModelChoiceField(
+        queryset=User.objects.filter(is_active=True),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Responsible Officer (for assignments)'
+    )
+    
+    activity_ids = forms.CharField(
+        widget=forms.HiddenInput(),
+        label='Selected Activities'
+    )
+
+
+class ActivityAttachmentForm(forms.ModelForm):
+    """Form for uploading activity attachments with version control"""
+    
+    class Meta:
+        model = ActivityAttachment
+        fields = ['file', 'document_type', 'description']
+        widgets = {
+            'file': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.docx,.doc,.xlsx,.xls',
+                'id': 'attachmentFile'
+            }),
+            'document_type': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'form-control',
+                'placeholder': 'Brief description of the document (optional)'
+            }),
+        }
+        labels = {
+            'file': 'Select Document (PDF, Word, or Excel)',
+            'document_type': 'Document Type',
+            'description': 'Description',
+        }
+    
+    def clean_file(self):
+        """Validate file type and size"""
+        file = self.cleaned_data.get('file')
+        
+        if file:
+            # Check file extension
+            import os
+            ext = os.path.splitext(file.name)[1].lower()
+            allowed_ext = ['.pdf', '.docx', '.doc', '.xlsx', '.xls']
+            if ext not in allowed_ext:
+                raise forms.ValidationError(
+                    f"File type '{ext}' is not allowed. "
+                    f"Allowed types: {', '.join(allowed_ext)}"
+                )
+            
+            # Check file size (max 50MB)
+            max_size = 50 * 1024 * 1024  # 50MB
+            if file.size > max_size:
+                raise forms.ValidationError(
+                    f"File size ({file.size / 1024 / 1024:.2f}MB) exceeds "
+                    f"maximum allowed size (50MB)"
+                )
+        
+        return file
+

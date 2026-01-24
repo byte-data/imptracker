@@ -1,0 +1,370 @@
+/**
+ * Form Styles
+ * 
+ * Purpose: Form controls, validation, layouts
+ */
+
+/* ========================================
+   FORM CONTROLS
+   ======================================== */
+
+.form-label {
+  font-weight: 500;
+  color: var(--bs-dark);
+  margin-bottom: 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.form-label .text-danger {
+  margin-left: 0.25rem;
+}
+
+.form-control,
+.form-select {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9375rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+  outline: none;
+}
+
+.form-control::placeholder {
+  color: var(--bs-gray-400);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  background-color: var(--bs-gray-100);
+  opacity: 0.7;
+}
+
+/* Detail display groups (for read-only detail pages) */
+.detail-group {
+  margin-bottom: 1rem;
+}
+
+.detail-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--bs-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 0.375rem;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: var(--bs-dark);
+  font-weight: 400;
+}
+
+/* Form control sizing */
+.form-control-sm,
+.form-select-sm {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.form-control-lg,
+.form-select-lg {
+  padding: 0.75rem 1rem;
+  font-size: 1.0625rem;
+}
+
+/* ========================================
+   FORM TEXT & HELP TEXT
+   ======================================== */
+
+.form-text {
+  font-size: 0.8125rem;
+  color: var(--bs-gray-600);
+  margin-top: 0.375rem;
+  display: block;
+}
+
+/* ========================================
+   CHECKBOXES & RADIOS
+   ======================================== */
+
+.form-check {
+  padding-left: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-check-input {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.125rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+}
+
+.form-check-input:checked {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+
+.form-check-input:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+}
+
+.form-check-label {
+  font-size: 0.9375rem;
+  color: var(--bs-body-color);
+  margin-left: 0.5rem;
+}
+
+/* Switch styles */
+.form-switch .form-check-input {
+  width: 2.5rem;
+  height: 1.25rem;
+  border-radius: 2rem;
+}
+
+/* ========================================
+   FORM VALIDATION
+   ======================================== */
+
+.is-invalid {
+  border-color: var(--bs-danger) !important;
+}
+
+.is-invalid:focus {
+  border-color: var(--bs-danger) !important;
+  box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.15) !important;
+}
+
+.invalid-feedback {
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--bs-danger);
+}
+
+.is-valid {
+  border-color: var(--bs-success) !important;
+}
+
+.is-valid:focus {
+  border-color: var(--bs-success) !important;
+  box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.15) !important;
+}
+
+.valid-feedback {
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--bs-success);
+}
+
+/* ========================================
+   INPUT GROUPS
+   ======================================== */
+
+.input-group {
+  border-radius: var(--bs-border-radius);
+}
+
+.input-group-text {
+  background-color: var(--bs-gray-100);
+  border: 1px solid var(--bs-border-color);
+  color: var(--bs-gray-600);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9375rem;
+}
+
+.input-group .form-control:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.input-group .form-control:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* ========================================
+   FLOATING LABELS
+   ======================================== */
+
+.form-floating > .form-control,
+.form-floating > .form-select {
+  padding: 1rem 0.875rem;
+}
+
+.form-floating > label {
+  padding: 1rem 0.875rem;
+  color: var(--bs-gray-500);
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label,
+.form-floating > .form-select ~ label {
+  opacity: 0.65;
+  transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+}
+
+/* ========================================
+   FORM LAYOUTS
+   ======================================== */
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-row > * {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Form section grouping */
+.form-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.form-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.form-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--bs-dark);
+  margin-bottom: 1.25rem;
+}
+
+/* Inline forms */
+.form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.form-inline .form-label {
+  margin-bottom: 0;
+  margin-right: 0.5rem;
+}
+
+.form-inline .form-control,
+.form-inline .form-select {
+  width: auto;
+  flex: 1;
+  min-width: 150px;
+}
+
+/* ========================================
+   FILE INPUTS
+   ======================================== */
+
+.form-control[type="file"] {
+  padding: 0.5rem 0.875rem;
+}
+
+.form-control[type="file"]::file-selector-button {
+  padding: 0.375rem 0.75rem;
+  margin: -0.5rem 0.875rem -0.5rem -0.875rem;
+  color: var(--bs-body-color);
+  background-color: var(--bs-gray-100);
+  border: 0;
+  border-right: 1px solid var(--bs-border-color);
+  border-radius: 0;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.form-control[type="file"]::file-selector-button:hover {
+  background-color: var(--bs-gray-200);
+}
+
+/* ========================================
+   RANGE INPUTS
+   ======================================== */
+
+.form-range {
+  height: 1.5rem;
+}
+
+.form-range::-webkit-slider-thumb {
+  background-color: var(--bs-primary);
+  border: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+}
+
+.form-range::-moz-range-thumb {
+  background-color: var(--bs-primary);
+  border: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+}
+
+.form-range:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+}
+
+.form-range:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+}
+
+/* ========================================
+   SEARCH INPUTS
+   ======================================== */
+
+.search-box {
+  position: relative;
+}
+
+.search-box .form-control {
+  padding-left: 2.5rem;
+}
+
+.search-box i {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--bs-gray-400);
+  pointer-events: none;
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+   ======================================== */
+
+@media (max-width: 767.98px) {
+  .form-row {
+    gap: 0.75rem;
+  }
+  
+  .form-row > * {
+    min-width: 100%;
+  }
+  
+  .form-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .form-inline .form-control,
+  .form-inline .form-select {
+    width: 100%;
+  }
+}

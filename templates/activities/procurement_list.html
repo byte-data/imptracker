@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Procurement Activities{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'activities_list' %}">Activities</a></li>
+<li class="breadcrumb-item active" aria-current="page">Procurement</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-cart me-2"></i>Procurement Activities
+            </h1>
+            <p class="page-subtitle text-muted mb-0">Activities with full or partial procurement</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'export_procurement_excel' %}" class="btn btn-success">
+                <i class="bi bi-file-earmark-excel me-1"></i>Export to Excel
+            </a>
+            <a href="{% url 'activities_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Back to Activities
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Procurement Activities Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-table me-2"></i>All Procurement Activities
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="procurement-table" class="table table-hover align-middle" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Clusters</th>
+                        <th>Status</th>
+                        <th>Total Budget</th>
+                        <th>Procurement Amount</th>
+                        <th>Disbursed</th>
+                        <th>Items</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in activities %}
+                    <tr style="cursor: pointer;" data-href="{% url 'procurement_detail' activity.pk %}">
+                        <td>
+                            <a href="{% url 'procurement_detail' activity.pk %}" class="text-decoration-none fw-medium">
+                                {{ activity.activity_id }}
+                            </a>
+                        </td>
+                        <td>{{ activity.name|truncatewords:8 }}</td>
+                        <td>
+                            {% if activity.is_procurement %}
+                                <span class="badge bg-warning text-dark">Full</span>
+                            {% else %}
+                                <span class="badge bg-info">Partial</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% for cluster in activity.clusters.all %}
+                                <span class="badge bg-secondary me-1">{{ cluster.short_name }}</span>
+                            {% empty %}
+                                <span class="text-muted">—</span>
+                            {% endfor %}
+                        </td>
+                        <td><span class="badge bg-primary">{{ activity.status.name }}</span></td>
+                        <td class="fw-medium">{{ activity.currency.code|default:"ZMK" }} {{ activity.total_budget|floatformat:2|intcomma }}</td>
+                        <td class="fw-medium text-warning">{{ activity.currency.code|default:"ZMK" }} {{ activity.procurement_amount|floatformat:2|intcomma|default:"0.00" }}</td>
+                        <td class="fw-medium text-success">{{ activity.currency.code|default:"ZMK" }} {{ activity.disbursed_amount|floatformat:2|intcomma|default:"0.00" }}</td>
+                        <td>
+                            {% if activity.procurement_breakdowns %}
+                                <span class="badge bg-success">{{ activity.procurement_breakdowns|length }} items</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'procurement_detail' activity.pk %}" class="btn btn-outline-info" title="View Procurement" onclick="event.stopPropagation();">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'activity_detail' activity.pk %}" class="btn btn-outline-primary" title="View Activity" onclick="event.stopPropagation();">
+                                    <i class="bi bi-list-task"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            <i class="bi bi-cart-x fs-1 d-block mb-2"></i>
+                            No procurement activities found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var table = new DataTable('#procurement-table', {
+        responsive: true,
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        order: [[0, 'asc']],
+        columnDefs: [
+            { orderable: false, targets: 9 }
+        ],
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search procurement activities...",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ procurement activities",
+            infoEmpty: "Showing 0 to 0 of 0 activities",
+            infoFiltered: "(filtered from _MAX_ total activities)",
+            zeroRecords: "No matching procurement activities found"
+        }
+    });
+    
+    // Handle row click to navigate to detail
+    $('#procurement-table tbody').on('click', 'tr', function(e) {
+        // Don't navigate if clicking on action buttons
+        if ($(e.target).closest('.btn-group').length === 0 && $(e.target).closest('a').length === 0) {
+            var href = $(this).data('href');
+            if (href) {
+                window.location.href = href;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+

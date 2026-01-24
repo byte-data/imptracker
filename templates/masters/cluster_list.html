@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cluster Management{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'settings' %}">Settings</a></li>
+<li class="breadcrumb-item active" aria-current="page">Clusters</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-collection me-2"></i>Cluster Management
+            </h1>
+            <p class="page-subtitle text-muted mb-0">Manage organizational clusters and departments</p>
+        </div>
+        <a href="{% url 'masters:cluster_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Add Cluster
+        </a>
+    </div>
+</div>
+
+<!-- Clusters Table Card -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-table me-2"></i>All Clusters
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="clustersTable">
+                <thead>
+                    <tr>
+                        <th>Short Name</th>
+                        <th>Full Name</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cluster in clusters %}
+                    <tr>
+                        <td>{{ cluster.short_name }}</td>
+                        <td>{{ cluster.full_name }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'masters:cluster_edit' cluster.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete('{{ cluster.pk }}', '{{ cluster.short_name }}')">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete the cluster <strong id="deleteName"></strong>?
+            </div>
+            <div class="modal-footer">
+                <form id="deleteForm" method="post">
+                    {% csrf_token %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+function confirmDelete(id, name) {
+    document.getElementById('deleteName').textContent = name;
+    document.getElementById('deleteForm').action = `/masters/clusters/${id}/delete/`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('clustersTable')) {
+        new DataTable('#clustersTable', {
+            responsive: true,
+            pageLength: 25,
+            order: [[0, 'asc']],
+            columnDefs: [{ orderable: false, targets: [2] }],
+            language: {
+                search: "_INPUT_",
+                searchPlaceholder: "Search clusters...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ clusters",
+                infoEmpty: "Showing 0 to 0 of 0 clusters",
+                infoFiltered: "(filtered from _MAX_ total clusters)"
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

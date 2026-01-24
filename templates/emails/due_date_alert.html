@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #e74c3c; color: white; padding: 20px; border-radius: 5px; }
+        .content { background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .footer { font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }
+        .button { background-color: #e74c3c; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }
+        .alert-box { background-color: #fadbd8; padding: 15px; margin: 10px 0; border-left: 4px solid #e74c3c; }
+        .countdown { font-size: 24px; color: #e74c3c; font-weight: bold; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Due Date Reminder</h1>
+        </div>
+        
+        <p>Hello {{ user.first_name|default:user.username }},</p>
+        
+        <p>This is a reminder that the following activity is approaching its due date:</p>
+        
+        <div class="alert-box">
+            <strong>Activity Name:</strong> {{ activity.name }}<br>
+            <strong>Activity ID:</strong> {{ activity.activity_id }}<br>
+            <strong>Due Date:</strong> {{ due_date }}<br><br>
+            
+            <div class="countdown">
+                {{ days_remaining }} days remaining
+            </div>
+        </div>
+        
+        <div class="content">
+            <p>Please ensure that all required documentation and updates are completed before the due date.</p>
+            <p>Current Status: <strong>{{ activity.status.name|default:"Not Set" }}</strong></p>
+        </div>
+        
+        <p>
+            <a href="{{ activity_url }}" class="button">Review Activity</a>
+        </p>
+        
+        <div class="footer">
+            <p>This is an automated notification from ZNPHI ImpTracker. Please do not reply to this email.</p>
+            <p>You can manage your notification preferences in your account settings.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f39c12; color: white; padding: 20px; border-radius: 5px; }
+        .content { background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .footer { font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }
+        .button { background-color: #f39c12; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }
+        .info-box { background-color: #fff3cd; padding: 15px; margin: 10px 0; border-left: 4px solid #f39c12; }
+        .status-change { font-weight: bold; }
+        .old-status { color: #e74c3c; }
+        .new-status { color: #27ae60; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Activity Status Changed</h1>
+        </div>
+        
+        <p>Hello {{ user.first_name|default:user.username }},</p>
+        
+        <p>The status of the following activity has changed:</p>
+        
+        <div class="info-box">
+            <strong>Activity Name:</strong> {{ activity.name }}<br>
+            <strong>Activity ID:</strong> {{ activity.activity_id }}<br>
+            <strong>Changed By:</strong> {{ changed_by }}<br><br>
+            
+            <div class="status-change">
+                Status Changed From: <span class="old-status">{{ old_status }}</span><br>
+                Status Changed To: <span class="new-status">{{ new_status }}</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <p>This change may impact the timeline and requirements for this activity. Please review the updated details.</p>
+        </div>
+        
+        <p>
+            <a href="{{ activity_url }}" class="button">View Activity</a>
+        </p>
+        
+        <div class="footer">
+            <p>This is an automated notification from ZNPHI ImpTracker. Please do not reply to this email.</p>
+            <p>You can manage your notification preferences in your account settings.</p>
+        </div>
+    </div>
+</body>
+</html>

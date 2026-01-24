@@ -1,0 +1,12 @@
+Django>=4.2
+psycopg2-binary
+openpyxl
+pandas
+django-import-export
+django-filter
+django-jet-reboot
+feedparser
+reportlab
+python-dotenv
+crispy-bootstrap5
+gunicorn

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Procurement Type{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'settings' %}">Settings</a></li>
+<li class="breadcrumb-item"><a href="{% url 'masters:procurement_type_list' %}">Procurement Types</a></li>
+<li class="breadcrumb-item active" aria-current="page">{% if is_edit %}Edit{% else %}Create{% endif %}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">{% if is_edit %}Edit Procurement Type{% else %}Create Procurement Type{% endif %}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="code" class="form-label">Type Code <span class="text-danger">*</span></label>
+                        <input type="text" name="code" id="code" 
+                               class="form-control" 
+                               value="{% if proc_type %}{{ proc_type.code }}{% endif %}" required>
+                        <div class="form-text">Unique code for the procurement type (e.g., equipment, services)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Type Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="name" 
+                               class="form-control" 
+                               value="{% if proc_type %}{{ proc_type.name }}{% endif %}" required>
+                        <div class="form-text">Display name of the procurement type (e.g., Equipment, Services)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="active" id="active" 
+                                   class="form-check-input" {% if not proc_type or proc_type.active %}checked{% endif %}>
+                            <label class="form-check-label" for="active">Active</label>
+                        </div>
+                        <div class="form-text">Inactive types will not appear in dropdown lists</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="is_default" id="is_default" 
+                                   class="form-check-input" {% if proc_type.is_default %}checked{% endif %}>
+                            <label class="form-check-label" for="is_default">Set as Default</label>
+                        </div>
+                        <div class="form-text">Default type will be pre-selected in activity forms</div>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <a href="{% url 'masters:procurement_type_list' %}" class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle-fill me-1"></i> Save Procurement Type
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

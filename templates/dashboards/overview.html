@@ -1,0 +1,684 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+{% endblock %}
+
+{% block content %}
+{% if total_activities == 0 or not total_activities %}
+<!-- Empty State -->
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="border-0 shadow-sm">
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                </div>
+                <h3 class="mb-3">No Data Available</h3>
+                <p class="text-muted mb-4 fs-5">
+                    Start by uploading some activities to your system or create your first activity manually.
+                </p>
+                <div class="d-flex gap-3 justify-content-center">
+                    <a href="{% url 'create_activity' %}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle me-2"></i>Create Activity
+                    </a>
+                    <a href="{% url 'upload_activities' %}" class="btn btn-success btn-lg">
+                        <i class="bi bi-cloud-upload me-2"></i>Bulk Upload
+                    </a>
+                </div>
+                <div class="mt-4">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        You can also download a template from the bulk upload page
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <h1 class="page-title">
+        <i class="bi bi-speedometer2 me-2"></i>Dashboard Overview
+    </h1>
+    <p class="page-subtitle text-muted">Welcome to your implementation tracking dashboard</p>
+</div>
+<!-- Stats Cards -->
+<div class="stats-grid mb-4">
+    <div class="card stats-card border-primary">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <p class="stats-label text-primary mb-1">Total Activities</p>
+              <h2 class="stats-value">{{ total_activities }}</h2>
+            </div>
+            <div class="stats-icon">
+              <i class="bi bi-list-task"></i>
+            </div>
+          </div>
+        </div>
+    </div>
+    
+    <div class="card stats-card border-success">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <p class="stats-label text-success mb-1">Total Budget</p>
+              <h2 class="stats-value">K{{ total_budget_usd|intcomma }}</h2>
+              <small class="text-muted">Zambian Kwacha</small>
+            </div>
+            <div class="stats-icon text-success">
+              <i class="bi bi-cash-coin"></i>
+            </div>
+          </div>
+        </div>
+    </div>
+    
+    <div class="card stats-card border-warning">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <p class="stats-label text-warning mb-1">Disbursed</p>
+              <h2 class="stats-value">K{{ total_disbursed|intcomma|default:0 }}</h2>
+              <small class="text-muted">for {{ implemented_count|default:0 }} partially or fully implemented.</small>
+            </div>
+            <div class="stats-icon text-warning">
+              <i class="bi bi-check-circle"></i>
+            </div>
+          </div>
+        </div>
+    </div>
+    
+    <div class="card stats-card border-info">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <p class="stats-label text-info mb-1">Procurements</p>
+              <h2 class="stats-value">K{{ total_procurement_value|intcomma|default:0 }}</h2>
+              <small class="text-muted">for {{ procurement_activities_count|default:0 }} procurements.</small>
+            </div>
+            <div class="stats-icon text-info">
+              <i class="bi bi-cart"></i>
+            </div>
+          </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-3 mb-4">
+    <!-- Activity Status Distribution -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-pie-chart me-2"></i>Activity Status Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="status-distribution-chart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Budget Execution Overview -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-speedometer me-2"></i>Budget Execution Rate
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="budget-execution-chart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Budget vs Disbursed by Cluster -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-bar-chart me-2"></i>Budget vs Disbursed by Cluster
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="budget-disbursed-cluster-chart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Procurement Activities -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-cart me-2"></i>Procurement Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="procurement-chart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Monthly Burn Rate Trend -->
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-graph-up me-2"></i>Monthly Disbursement Trend (Burn Rate)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="burn-rate-chart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Funding Distribution by Funder -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-bank me-2"></i>Funding Distribution by Partner
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="funding-distribution-chart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Activities by Quarter -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-calendar-range me-2"></i>Activity Distribution by Quarter
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="quarterly-distribution-chart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities Table -->
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">
+            <i class="bi bi-clock-history me-2"></i>Recent Activities
+          </h5>
+          <a href="{% url 'activities_list' %}" class="btn btn-sm btn-outline-primary">
+            View All <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="recentActivitiesTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Planned Month</th>
+                        <th class="text-end">Budget</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in recent_activities %}
+                    <tr style="cursor: pointer;" onclick="window.location='{% url 'activity_detail' activity.pk %}'">
+                        <td>
+                          <a href="{% url 'activity_detail' activity.pk %}" class="text-decoration-none fw-medium">
+                            {{ activity.activity_id }}
+                          </a>
+                        </td>
+                        <td>{{ activity.name }}</td>
+                        <td>
+                          <span class="badge bg-primary">{{ activity.status.name }}</span>
+                        </td>
+                        <td>
+                          <i class="bi bi-calendar3 me-1 text-muted"></i>
+                          {{ activity.planned_month|date:"M Y"|default:"Not set" }}
+                        </td>
+                        <td class="text-end fw-medium">
+                          {{ activity.currency.code|default:"ZMK" }} {{ activity.total_budget|floatformat:2|intcomma|default:"0" }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                          <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                          No recent activities found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    var activities_by_cluster_data = {{ activities_by_cluster_data|safe }};
+    var budget_by_cluster_data = {{ budget_by_cluster_data|safe }};
+    var status_distribution_data = {{ status_distribution_data|safe }};
+    var budget_execution_data = {{ budget_execution_data|safe }};
+    var procurement_data = {{ procurement_data|safe }};
+    var burn_rate_data = {{ burn_rate_data|safe }};
+    var funding_distribution_data = {{ funding_distribution_data|safe }};
+    var quarterly_data = {{ quarterly_data|safe }};
+</script>
+{% endblock %}
+
+{% block page_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    
+    // 1. Activity Status Distribution - Donut Chart
+    var statusOptions = {
+        chart: {
+            type: 'donut',
+            height: 350,
+            fontFamily: 'inherit'
+        },
+        series: status_distribution_data.series,
+        labels: status_distribution_data.labels,
+        colors: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#6b7280'],
+        legend: {
+            position: 'bottom',
+            fontSize: '14px'
+        },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '65%',
+                    labels: {
+                        show: true,
+                        total: {
+                            show: true,
+                            label: 'Total Activities',
+                            fontSize: '14px',
+                            color: '#64748b'
+                        }
+                    }
+                }
+            }
+        },
+        dataLabels: {
+            enabled: true
+        },
+        tooltip: {
+            y: {
+                formatter: function(val) {
+                    return val + " activities";
+                }
+            }
+        }
+    };
+    new ApexCharts(document.querySelector("#status-distribution-chart"), statusOptions).render();
+
+    // 2. Budget Execution Rate - Radial Bar Chart
+    var budgetExecOptions = {
+        chart: {
+            type: 'radialBar',
+            height: 350,
+            fontFamily: 'inherit'
+        },
+        series: [budget_execution_data.execution_rate],
+        colors: ['#10b981'],
+        plotOptions: {
+            radialBar: {
+                hollow: {
+                    size: '60%'
+                },
+                track: {
+                    background: '#e5e7eb'
+                },
+                dataLabels: {
+                    show: true,
+                    name: {
+                        fontSize: '16px',
+                        color: '#64748b',
+                        offsetY: -10
+                    },
+                    value: {
+                        fontSize: '32px',
+                        fontWeight: 700,
+                        color: '#1e293b',
+                        offsetY: 5,
+                        formatter: function(val) {
+                            return val.toFixed(1) + '%';
+                        }
+                    }
+                }
+            }
+        },
+        labels: ['Budget Executed'],
+        stroke: {
+            lineCap: 'round'
+        }
+    };
+    new ApexCharts(document.querySelector("#budget-execution-chart"), budgetExecOptions).render();
+
+    // 3. Budget vs Disbursed by Cluster - Grouped Bar Chart
+    var budgetDisbursedOptions = {
+        chart: {
+            type: 'bar',
+            height: 350,
+            fontFamily: 'inherit',
+            toolbar: {
+                show: true,
+                tools: {
+                    download: true
+                }
+            }
+        },
+        series: [
+            {
+                name: 'Total Budget',
+                data: budget_by_cluster_data.budget_series
+            },
+            {
+                name: 'Disbursed',
+                data: budget_by_cluster_data.disbursed_series
+            },
+            {
+                name: 'Remaining',
+                data: budget_by_cluster_data.remaining_series
+            }
+        ],
+        xaxis: {
+            categories: budget_by_cluster_data.labels,
+            labels: {
+                style: {
+                    fontSize: '12px'
+                }
+            }
+        },
+        yaxis: {
+            labels: {
+                formatter: function (val) {
+                    return "K" + (val / 1000).toFixed(0) + "K";
+                }
+            }
+        },
+        plotOptions: {
+            bar: {
+                horizontal: false,
+                columnWidth: '70%',
+                borderRadius: 4
+            }
+        },
+        dataLabels: {
+            enabled: false
+        },
+        colors: ['#3b82f6', '#10b981', '#f59e0b'],
+        legend: {
+            position: 'top',
+            fontSize: '14px'
+        },
+        tooltip: {
+            shared: true,
+            intersect: false,
+            y: {
+                formatter: function (val) {
+                    return "K" + val.toLocaleString();
+                }
+            }
+        },
+        grid: {
+            borderColor: '#e5e7eb',
+            strokeDashArray: 4
+        }
+    };
+    new ApexCharts(document.querySelector("#budget-disbursed-cluster-chart"), budgetDisbursedOptions).render();
+
+    // 4. Procurement Status - Donut Chart
+    var procurementOptions = {
+        chart: {
+            type: 'donut',
+            height: 350,
+            fontFamily: 'inherit'
+        },
+        series: procurement_data.series,
+        labels: procurement_data.labels,
+        colors: ['#10b981', '#f59e0b', '#6b7280'],
+        legend: {
+            position: 'bottom',
+            fontSize: '14px'
+        },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '65%',
+                    labels: {
+                        show: true,
+                        total: {
+                            show: true,
+                            label: 'Total',
+                            fontSize: '14px'
+                        }
+                    }
+                }
+            }
+        },
+        dataLabels: {
+            enabled: true
+        }
+    };
+    new ApexCharts(document.querySelector("#procurement-chart"), procurementOptions).render();
+
+    // 5. Monthly Burn Rate - Area Chart
+    var burnRateOptions = {
+        chart: {
+            type: 'area',
+            height: 350,
+            fontFamily: 'inherit',
+            toolbar: {
+                show: true
+            },
+            zoom: {
+                enabled: true
+            }
+        },
+        series: [
+            {
+                name: 'Disbursed Amount',
+                data: burn_rate_data.series
+            },
+            {
+                name: 'Cumulative',
+                data: burn_rate_data.cumulative_series
+            }
+        ],
+        xaxis: {
+            categories: burn_rate_data.labels,
+            labels: {
+                rotate: -45,
+                style: {
+                    fontSize: '11px'
+                }
+            }
+        },
+        yaxis: {
+            labels: {
+                formatter: function (val) {
+                    return "K" + (val / 1000).toFixed(0) + "K";
+                }
+            }
+        },
+        colors: ['#3b82f6', '#10b981'],
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shadeIntensity: 1,
+                opacityFrom: 0.7,
+                opacityTo: 0.3,
+                stops: [0, 90, 100]
+            }
+        },
+        dataLabels: {
+            enabled: false
+        },
+        stroke: {
+            curve: 'smooth',
+            width: 2
+        },
+        legend: {
+            position: 'top',
+            fontSize: '14px'
+        },
+        tooltip: {
+            shared: true,
+            intersect: false,
+            y: {
+                formatter: function (val) {
+                    return "K" + val.toLocaleString();
+                }
+            }
+        },
+        grid: {
+            borderColor: '#e5e7eb',
+            strokeDashArray: 4
+        }
+    };
+    new ApexCharts(document.querySelector("#burn-rate-chart"), burnRateOptions).render();
+
+    // 6. Funding Distribution by Funder - Horizontal Bar Chart
+    var fundingOptions = {
+        chart: {
+            type: 'bar',
+            height: 350,
+            fontFamily: 'inherit',
+            toolbar: {
+                show: false
+            }
+        },
+        series: [{
+            name: 'Total Budget',
+            data: funding_distribution_data.series
+        }],
+        xaxis: {
+            categories: funding_distribution_data.labels,
+            labels: {
+                formatter: function (val) {
+                    return "K" + (val / 1000).toFixed(0) + "K";
+                }
+            }
+        },
+        plotOptions: {
+            bar: {
+                horizontal: true,
+                borderRadius: 4,
+                dataLabels: {
+                    position: 'top'
+                }
+            }
+        },
+        colors: ['#06b6d4'],
+        dataLabels: {
+            enabled: true,
+            offsetX: 30,
+            formatter: function (val) {
+                return "K" + (val / 1000).toFixed(0) + "K";
+            },
+            style: {
+                fontSize: '12px',
+                colors: ['#1e293b']
+            }
+        },
+        tooltip: {
+            y: {
+                formatter: function (val) {
+                    return "K" + val.toLocaleString();
+                }
+            }
+        },
+        grid: {
+            borderColor: '#e5e7eb'
+        }
+    };
+    new ApexCharts(document.querySelector("#funding-distribution-chart"), fundingOptions).render();
+
+    // 7. Quarterly Distribution - Column Chart
+    var quarterlyOptions = {
+        chart: {
+            type: 'bar',
+            height: 350,
+            fontFamily: 'inherit',
+            toolbar: {
+                show: false
+            }
+        },
+        series: [{
+            name: 'Activities',
+            data: quarterly_data.series
+        }],
+        xaxis: {
+            categories: quarterly_data.labels,
+            labels: {
+                style: {
+                    fontSize: '12px'
+                }
+            }
+        },
+        plotOptions: {
+            bar: {
+                borderRadius: 6,
+                columnWidth: '50%',
+                dataLabels: {
+                    position: 'top'
+                }
+            }
+        },
+        colors: ['#8b5cf6'],
+        dataLabels: {
+            enabled: true,
+            offsetY: -20,
+            style: {
+                fontSize: '12px',
+                colors: ['#1e293b']
+            }
+        },
+        yaxis: {
+            labels: {
+                formatter: function (val) {
+                    return Math.floor(val);
+                }
+            }
+        },
+        tooltip: {
+            y: {
+                formatter: function (val) {
+                    return val + " activities";
+                }
+            }
+        },
+        grid: {
+            borderColor: '#e5e7eb',
+            strokeDashArray: 4
+        }
+    };
+    new ApexCharts(document.querySelector("#quarterly-distribution-chart"), quarterlyOptions).render();
+});
+</script>
+{% endblock %}
