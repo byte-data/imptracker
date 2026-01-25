@@ -20,11 +20,11 @@
             <p class="page-subtitle text-muted mb-0">View and manage all implementation activities</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{% url 'procurement_list' %}" class="btn btn-outline-warning">
-                <i class="bi bi-cart me-1"></i>Procurement View
+            <a href="{% url 'procurement_list' %}" class="btn btn-warning">
+                <i class="bi bi-shop me-1"></i>Procurements
             </a>
             {% if request.user.is_superuser or request.user.is_staff or request.user|has_role:"Activity Manager" or request.user|has_role:"System Admin" or request.user|has_role:"Data Manager" %}
-            <a href="{% url 'upload_activities' %}" class="btn btn-outline-info">
+            <a href="{% url 'upload_activities' %}" class="btn btn-info">
                 <i class="bi bi-upload me-1"></i>Bulk Upload
             </a>
             {% endif %}

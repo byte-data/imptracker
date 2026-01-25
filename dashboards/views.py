@@ -3,6 +3,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.db.models import Sum, Count, Q
 from activities.models import Activity
+from audit.models import AuditLog
 from .models import SavedDashboardView
 from io import BytesIO
 import json
@@ -154,8 +155,18 @@ def dashboard(request):
         cumsum += val
         cumulative_disbursed.append(cumsum)
     
-    # Get recent activities (ordered by ID descending to get latest)
-    recent_activities = qs.select_related('status', 'currency').order_by('-id')[:10]
+    # Get recent activities (ordered by most recently updated based on audit logs)
+    recent_activity_ids = AuditLog.objects.filter(
+        activity_id__isnull=False
+    ).values('activity_id').distinct().order_by('-timestamp')[:10]
+    
+    recent_activity_id_list = [item['activity_id'] for item in recent_activity_ids]
+    recent_activities = qs.filter(id__in=recent_activity_id_list).select_related('status', 'currency')
+    
+    # Attach last action to each activity
+    for activity in recent_activities:
+        last_audit = AuditLog.objects.filter(activity_id=activity.id).select_related('user').first()
+        activity.last_action = last_audit
     
     # Count clusters and funders
     total_clusters = qs.values('clusters').distinct().count()

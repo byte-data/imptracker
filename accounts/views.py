@@ -9,8 +9,8 @@ from .models import User, Cluster
 import json
 
 def is_user_manager(user):
-    """Check if user has User Manager role"""
-    return user.is_superuser or user.groups.filter(name='User Manager').exists()
+    """Check if user has User Manager or System Admin role"""
+    return user.is_superuser or user.groups.filter(name__in=['User Manager', 'System Admin']).exists()
 
 def is_system_admin(user):
     """Check if user is System Admin"""

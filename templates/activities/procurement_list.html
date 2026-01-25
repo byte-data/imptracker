@@ -31,6 +31,7 @@
 </div>
 
 <!-- Procurement Activities Table -->
+{% if activities %}
 <div class="card">
     <div class="card-header">
         <h5 class="card-title mb-0">
@@ -92,18 +93,11 @@
                             <div class="btn-group btn-group-sm" role="group">
                                 <a href="{% url 'procurement_detail' activity.pk %}" class="btn btn-outline-info" title="View Procurement" onclick="event.stopPropagation();">
                                     <i class="bi bi-eye"></i>
-                                </a>
+                                a>
                                 <a href="{% url 'activity_detail' activity.pk %}" class="btn btn-outline-primary" title="View Activity" onclick="event.stopPropagation();">
                                     <i class="bi bi-list-task"></i>
                                 </a>
                             </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="10" class="text-center text-muted py-4">
-                            <i class="bi bi-cart-x fs-1 d-block mb-2"></i>
-                            No procurement activities found
                         </td>
                     </tr>
                     {% endfor %}
@@ -112,6 +106,27 @@
         </div>
     </div>
 </div>
+{% else %}
+<!-- Empty State -->
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-cart-x display-1 text-muted"></i>
+                </div>
+                <h3 class="mb-3">No Procurement Activities Found</h3>
+                <p class="text-muted mb-4 fs-5">
+                    There are currently no activities marked for full or partial procurement.
+                </p>
+                <a href="{% url 'activities_list' %}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-arrow-left me-2"></i>Back to All Activities
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block page_js %}

@@ -561,7 +561,7 @@ def upload_activities(request):
                 os.remove(temp_path)
             request.session.pop('upload_staged', None)
 
-        return redirect('activity_list')
+        return redirect('activities_list')
 
     # Stage upload and show summary
     if request.method == 'POST':

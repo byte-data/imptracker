@@ -13,7 +13,7 @@
 <!-- Empty State -->
 <div class="row justify-content-center">
     <div class="col-lg-8">
-        <div class="border-0 shadow-sm">
+        <div class="card border-0 shadow-sm">
             <div class="text-center py-5">
                 <div class="mb-4">
                     <i class="bi bi-inbox display-1 text-muted"></i>
@@ -222,7 +222,7 @@
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
           <h5 class="card-title mb-0">
-            <i class="bi bi-clock-history me-2"></i>Recent Activities
+            <i class="bi bi-clock-history me-2"></i>Recent Updated Activities
           </h5>
           <a href="{% url 'activities_list' %}" class="btn btn-sm btn-outline-primary">
             View All <i class="bi bi-arrow-right ms-1"></i>
@@ -238,7 +238,7 @@
                         <th>Name</th>
                         <th>Status</th>
                         <th>Planned Month</th>
-                        <th class="text-end">Budget</th>
+                        <th>Recent Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -257,8 +257,15 @@
                           <i class="bi bi-calendar3 me-1 text-muted"></i>
                           {{ activity.planned_month|date:"M Y"|default:"Not set" }}
                         </td>
-                        <td class="text-end fw-medium">
-                          {{ activity.currency.code|default:"ZMK" }} {{ activity.total_budget|floatformat:2|intcomma|default:"0" }}
+                        <td>
+                          {% if activity.last_action %}
+                            <div class="d-flex flex-column">
+                              <span class="text-muted small">{{ activity.last_action.action }}</span>
+                              <span class="text-muted small">by {{ activity.last_action.user.get_full_name|default:activity.last_action.user.username }}</span>
+                            </div>
+                          {% else %}
+                            <span class="text-muted small">No recent action</span>
+                          {% endif %}
                         </td>
                     </tr>
                     {% empty %}
