@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Account Created</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #1B8A51; color: white; padding: 20px; border-radius: 5px; }
+        .content { background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .footer { font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }
+        .button { background-color: #1B8A51; color: white !important; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }
+        .info-box { background-color: #eaf6ef; padding: 15px; margin: 10px 0; border-left: 4px solid #1B8A51; }
+        .muted { color: #666; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Account Created</h1>
+        </div>
+
+        <p>Hello {{ user.first_name|default:user.username }},</p>
+
+        <p>
+            {% if created_by %}
+                An ImpTracker account has been created for you by <strong>{{ created_by }}</strong>.
+            {% else %}
+                An ImpTracker account has been created for you.
+            {% endif %}
+        </p>
+
+        <div class="info-box">
+            <strong>Username:</strong> {{ user.username }}<br>
+            {% if user.email %}<strong>Email:</strong> {{ user.email }}<br>{% endif %}
+            <span class="muted">For security, please change your password after your first login.</span>
+        </div>
+
+        <div class="content">
+            <p>
+                Use the buttons below to sign in and then update your password.
+            </p>
+        </div>
+
+        <p>
+            {% if login_url %}
+                <a href="{{ login_url }}" class="button">Sign In</a>
+            {% endif %}
+            {% if change_password_url %}
+                <a href="{{ change_password_url }}" class="button" style="margin-left: 10px;">Change Password</a>
+            {% endif %}
+        </p>
+
+        <p class="muted">If you did not expect this email, please contact your administrator.</p>
+
+        <div class="footer">
+            <p>This is an automated notification from ZNPHI ImpTracker. Please do not reply to this email.</p>
+            <p>You can manage your notification preferences in your account settings.</p>
+        </div>
+    </div>
+</body>
+</html>

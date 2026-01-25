@@ -3,7 +3,28 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-ENV_FILE = os.getenv("ENV_FILE", os.getenv("DJANGO_ENV_FILE", ".env"))
+
+def _env_bool(name: str, default: bool = False) -> bool:
+	val = os.getenv(name)
+	if val is None:
+		return default
+	return str(val).strip().lower() in ("1", "true", "yes", "on")
+
+
+# Choose which env file to load by default.
+# - Local/dev: .env
+# - Production: production.env
+# Can be overridden via ENV_FILE or DJANGO_ENV_FILE.
+_bootstrap_env = os.getenv("DJANGO_ENV", "").strip().lower()
+_bootstrap_debug = os.getenv("DEBUG")
+
+_default_env_file = ".env"
+if _bootstrap_env in ("prod", "production"):
+	_default_env_file = "production.env"
+elif _bootstrap_debug is not None and str(_bootstrap_debug).strip().lower() in ("0", "false", "no", "off"):
+	_default_env_file = "production.env"
+
+ENV_FILE = os.getenv("ENV_FILE", os.getenv("DJANGO_ENV_FILE", _default_env_file))
 load_dotenv(ENV_FILE)
 
 # Define the base directory of your project
@@ -11,7 +32,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Core settings from environment
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = _env_bool("DEBUG", True)
 
 # Hosts and site metadata
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
@@ -85,7 +106,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', True)
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', os.getenv('GMAIL_EMAIL', ''))
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', os.getenv('GMAIL_APP_PASSWORD', ''))
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@example.com')
@@ -95,13 +116,13 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-repl
 # ============================================================================
 
 # Enable/disable notifications
-NOTIFICATIONS_ENABLED = os.getenv('NOTIFICATIONS_ENABLED', 'True') == 'True'
+NOTIFICATIONS_ENABLED = _env_bool('NOTIFICATIONS_ENABLED', True)
 
 # Due date alert days (send alert X days before deadline)
 DUE_DATE_ALERT_DAYS = int(os.getenv('DUE_DATE_ALERT_DAYS', '7'))
 
 # Send test email (for debugging)
-SEND_TEST_EMAIL = os.getenv('SEND_TEST_EMAIL', 'False') == 'True'
+SEND_TEST_EMAIL = _env_bool('SEND_TEST_EMAIL', False)
 # Locale / TZ defaults
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
@@ -123,6 +144,6 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Security defaults for production
-SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False') == 'True'
-SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'
-CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'False') == 'True'
+SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', False)
+SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', False)
+CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', False)

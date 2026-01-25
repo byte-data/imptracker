@@ -14,6 +14,65 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _absolute_url(path: str) -> str:
+    base = (getattr(settings, "SITE_URL", "") or "").strip()
+    if not base:
+        return ""
+    base = base.rstrip("/")
+    if not path.startswith("/"):
+        path = "/" + path
+    return f"{base}{path}"
+
+
+def _display_name(user) -> str:
+    if not user:
+        return "System"
+    full = (user.get_full_name() or "").strip()
+    return full or getattr(user, "username", "System")
+
+
+def send_user_created_notification(new_user, created_by=None):
+    """Send an email to the newly created user advising them to change password."""
+    if not settings.NOTIFICATIONS_ENABLED:
+        return False
+
+    if not getattr(new_user, "email", None):
+        return False
+
+    # Ensure preference row exists for the user (defaults)
+    try:
+        NotificationPreference.get_or_create_for_user(new_user)
+    except Exception:
+        pass
+
+    try:
+        subject = "Your ImpTracker account has been created"
+        context = {
+            "user": new_user,
+            "created_by": _display_name(created_by),
+            "login_url": _absolute_url("/login/"),
+            "change_password_url": _absolute_url("/accounts/profile/change-password/"),
+        }
+
+        html_message = render_to_string("emails/user_created.html", context)
+        plain_message = strip_tags(html_message)
+
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[new_user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+
+        logger.info(f"User created notification sent to {new_user.email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send user created notification: {str(e)}")
+        return False
+
+
 def send_assignment_notification(activity, recipient_user, assigned_by=None):
     """
     Send notification email when an activity is assigned to a user
@@ -39,7 +98,7 @@ def send_assignment_notification(activity, recipient_user, assigned_by=None):
             'user': recipient_user,
             'activity': activity,
             'assigned_by': assigned_by or 'System',
-            'activity_url': f"{settings.SITE_URL}/activities/{activity.id}/" if hasattr(settings, 'SITE_URL') else '',
+            'activity_url': _absolute_url(f"/activities/{activity.id}/"),
             'status': activity.status.name if activity.status else 'Not Set',
             'budget': f"{activity.total_budget} {activity.currency.code}" if activity.currency else 'N/A',
         }
@@ -115,7 +174,7 @@ def send_status_change_notification(activity, old_status, new_status, changed_by
             'old_status': old_status,
             'new_status': new_status,
             'changed_by': changed_by or 'System',
-            'activity_url': f"{settings.SITE_URL}/activities/{activity.id}/" if hasattr(settings, 'SITE_URL') else '',
+            'activity_url': _absolute_url(f"/activities/{activity.id}/"),
         }
         
         html_message = render_to_string('emails/status_change.html', context)
@@ -181,7 +240,7 @@ def send_due_date_alert(activity, days_remaining):
             'activity': activity,
             'days_remaining': days_remaining,
             'due_date': activity.planned_month.strftime('%B %d, %Y') if activity.planned_month else 'Not set',
-            'activity_url': f"{settings.SITE_URL}/activities/{activity.id}/" if hasattr(settings, 'SITE_URL') else '',
+            'activity_url': _absolute_url(f"/activities/{activity.id}/"),
         }
         
         html_message = render_to_string('emails/due_date_alert.html', context)
@@ -250,7 +309,7 @@ def send_activity_update_notification(activity, update_description, notified_use
                 'user': user,
                 'activity': activity,
                 'update': update_description,
-                'activity_url': f"{settings.SITE_URL}/activities/{activity.id}/" if hasattr(settings, 'SITE_URL') else '',
+                'activity_url': _absolute_url(f"/activities/{activity.id}/"),
             }
             
             html_message = render_to_string('emails/activity_update.html', context)

@@ -8,6 +8,8 @@ from django.db.models import Q
 from .models import User, Cluster
 import json
 
+from services.notifications import send_user_created_notification
+
 def is_user_manager(user):
     """Check if user has User Manager or System Admin role"""
     return user.is_superuser or user.groups.filter(name__in=['User Manager', 'System Admin']).exists()
@@ -83,6 +85,12 @@ def user_create(request):
             password=password,
             is_active=is_active
         )
+
+        # Notify the user their account was created (non-blocking)
+        try:
+            send_user_created_notification(user, created_by=request.user)
+        except Exception:
+            pass
         
         # Assign roles
         role_ids = request.POST.getlist('roles')
