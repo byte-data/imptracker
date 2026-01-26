@@ -69,7 +69,7 @@
                 <label class="text-muted small">Clusters</label>
                 <div>
                     {% for cluster in activity.clusters.all %}
-                        <span class="badge bg-secondary me-1">{{ cluster.name }} ({{ cluster.short_name }})</span>
+                        <span class="badge bg-secondary me-1">{{ cluster.name }} {{ cluster.short_name }}</span>
                     {% empty %}
                         <span class="text-muted">Not assigned</span>
                     {% endfor %}

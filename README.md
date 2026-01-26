@@ -1,4 +1,4 @@
-ZNPHI ImpTracker is a Django/PostgreSQL web app for multi-year activity planning, procurement tracking, attachments with versioning, audit logging, dashboards, and email notifications (assignments, status changes, due date alerts) with role-based access control.
+ImpTracker is a Django/PostgreSQL web app for multi-year activity planning, procurement tracking, attachments with versioning, audit logging, dashboards, and email notifications (assignments, status changes, due date alerts) with role-based access control.
 
 ## Architecture Diagram (text)
 - Client (browser) → Nginx → Gunicorn (Django) → PostgreSQL
@@ -63,3 +63,6 @@ ZNPHI ImpTracker is a Django/PostgreSQL web app for multi-year activity planning
 - [ ] `docker compose exec web python manage.py migrate`
 - [ ] `docker compose exec web python manage.py seed_defaults`
 - [ ] Admin user created; smoke-test login, upload, dashboards, notifications
+
+## License
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).

@@ -44,6 +44,14 @@
       .navbar-toggler-icon {
         filter: brightness(0) invert(1);
       }
+
+      /* Ensure Bootstrap modals appear above the sticky navbar (z-index: 1060). */
+      .modal {
+        z-index: 2000;
+      }
+      .modal-backdrop {
+        z-index: 1990;
+      }
     </style>
   </head>
   
@@ -90,7 +98,7 @@
               <a class="nav-link dropdown-toggle fw-500" href="#" id="masterDataDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="bi bi-database me-1"></i><span class="d-lg-inline d-md-none">Master Data</span>
               </a>
-              <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="masterDataDropdown">
+              <ul class="dropdown-menu dropdown-menu" aria-labelledby="masterDataDropdown">
                 <li><a class="dropdown-item" href="{% url 'masters:funder_list' %}"><i class="bi bi-bank me-2"></i>Funders</a></li>
                 <li><a class="dropdown-item" href="{% url 'masters:status_list' %}"><i class="bi bi-clipboard-check me-2"></i>Statuses</a></li>
                 <li><a class="dropdown-item" href="{% url 'masters:currency_list' %}"><i class="bi bi-currency-dollar me-2"></i>Currencies</a></li>
@@ -210,7 +218,7 @@
             <p class="mb-0 text-muted small">&copy; {% now "Y" %} ZNPHI. All rights reserved.</p>
           </div>
           <div class="col-md-6 text-md-end">
-            <p class="mb-0 text-muted small">An open Source project powered by Byte Data.</p>
+            <p class="mb-0 text-muted small">An open Source project powered by <a href="https://github.com/byte-data/imptracker" style="text-decoration: none; color: black;" target=_blank /><b>ByteData</b></a>.</p>
           </div>
         </div>
       </div>

@@ -135,12 +135,25 @@ celerybeat.pid
 # Environments
 .env
 production.env
+local.env
+*.env
+!.env.example
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Django collected/static and uploads (runtime artifacts)
+staticfiles/
+media/
+
+# Local docker volumes
+pgdata/
+
+# Local deployment notes
+PRODUCTION_DEPLOYMENT.md
 
 # Spyder project settings
 .spyderproject

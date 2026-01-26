@@ -60,10 +60,10 @@ def user_list(request):
 def user_create(request):
     """Create a new user"""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        first_name = request.POST.get('first_name')
-        last_name = request.POST.get('last_name')
+        username = (request.POST.get('username') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        first_name = (request.POST.get('first_name') or '').strip()
+        last_name = (request.POST.get('last_name') or '').strip()
         password = request.POST.get('password')
         is_active = request.POST.get('is_active') == 'on'
         
@@ -72,8 +72,29 @@ def user_create(request):
             messages.error(request, f'Username "{username}" already exists.')
             return redirect('accounts:user_create')
         
-        if not username or not password:
-            messages.error(request, 'Username and password are required.')
+        if not username:
+            messages.error(request, 'Username is required.')
+            return redirect('accounts:user_create')
+
+        if not email:
+            messages.error(request, 'Email is required.')
+            return redirect('accounts:user_create')
+
+        if not first_name:
+            messages.error(request, 'First name is required.')
+            return redirect('accounts:user_create')
+
+        if not last_name:
+            messages.error(request, 'Last name is required.')
+            return redirect('accounts:user_create')
+
+        if not password:
+            messages.error(request, 'Password is required.')
+            return redirect('accounts:user_create')
+
+        role_ids = request.POST.getlist('roles')
+        if not role_ids:
+            messages.error(request, 'At least one role is required.')
             return redirect('accounts:user_create')
         
         # Create user
@@ -92,10 +113,8 @@ def user_create(request):
         except Exception:
             pass
         
-        # Assign roles
-        role_ids = request.POST.getlist('roles')
-        if role_ids:
-            user.groups.set(Group.objects.filter(id__in=role_ids))
+        # Assign roles (required)
+        user.groups.set(Group.objects.filter(id__in=role_ids))
         
         # Assign clusters
         cluster_ids = request.POST.getlist('clusters')
@@ -120,14 +139,29 @@ def user_edit(request, pk):
     user = get_object_or_404(User, pk=pk)
     
     if request.method == 'POST':
-        user.username = request.POST.get('username')
-        user.email = request.POST.get('email')
-        user.first_name = request.POST.get('first_name')
-        user.last_name = request.POST.get('last_name')
+        user.username = (request.POST.get('username') or '').strip()
+        user.email = (request.POST.get('email') or '').strip()
+        user.first_name = (request.POST.get('first_name') or '').strip()
+        user.last_name = (request.POST.get('last_name') or '').strip()
         user.is_active = request.POST.get('is_active') == 'on'
+
+        if not user.email:
+            messages.error(request, 'Email is required.')
+            return redirect('accounts:user_edit', pk=pk)
+
+        if not user.first_name:
+            messages.error(request, 'First name is required.')
+            return redirect('accounts:user_edit', pk=pk)
+
+        if not user.last_name:
+            messages.error(request, 'Last name is required.')
+            return redirect('accounts:user_edit', pk=pk)
         
-        # Assign roles
+        # Assign roles (required)
         role_ids = request.POST.getlist('roles')
+        if not role_ids:
+            messages.error(request, 'At least one role is required.')
+            return redirect('accounts:user_edit', pk=pk)
         user.groups.set(Group.objects.filter(id__in=role_ids))
         
         # Assign clusters

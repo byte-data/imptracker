@@ -123,6 +123,19 @@ DUE_DATE_ALERT_DAYS = int(os.getenv('DUE_DATE_ALERT_DAYS', '7'))
 
 # Send test email (for debugging)
 SEND_TEST_EMAIL = _env_bool('SEND_TEST_EMAIL', False)
+
+# ==========================================================================
+# DJANGO TASKS (Django 6)
+# ==========================================================================
+
+TASKS = {
+	"default": {
+		"BACKEND": "services.task_backends.threaded.ThreadedBackend",
+		"OPTIONS": {
+			"MAX_WORKERS": int(os.getenv("TASKS_MAX_WORKERS", "4")),
+		},
+	}
+}
 # Locale / TZ defaults
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'

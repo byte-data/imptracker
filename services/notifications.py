@@ -1,370 +1,144 @@
-"""
-Email notification service for activities
-Handles sending emails for assignments, status changes, and reminders
+"""Notification API.
+
+Public functions keep the original signatures but enqueue work via Django 6 tasks.
+The actual email rendering/sending happens in `services.notification_core`.
 """
 
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
-from django.conf import settings
-from django.utils import timezone
-from activities.models import NotificationLog, NotificationPreference
 import logging
+
+from django.conf import settings
+
+from activities.models import NotificationLog
 
 logger = logging.getLogger(__name__)
 
 
-def _absolute_url(path: str) -> str:
-    base = (getattr(settings, "SITE_URL", "") or "").strip()
-    if not base:
-        return ""
-    base = base.rstrip("/")
-    if not path.startswith("/"):
-        path = "/" + path
-    return f"{base}{path}"
-
-
-def _display_name(user) -> str:
-    if not user:
-        return "System"
-    full = (user.get_full_name() or "").strip()
-    return full or getattr(user, "username", "System")
-
-
-def send_user_created_notification(new_user, created_by=None):
-    """Send an email to the newly created user advising them to change password."""
+def send_user_created_notification(new_user, created_by=None) -> bool:
     if not settings.NOTIFICATIONS_ENABLED:
         return False
 
-    if not getattr(new_user, "email", None):
+    user_id = getattr(new_user, "pk", None)
+    if not user_id:
         return False
 
-    # Ensure preference row exists for the user (defaults)
-    try:
-        NotificationPreference.get_or_create_for_user(new_user)
-    except Exception:
-        pass
+    created_by_id = getattr(created_by, "pk", None) if created_by else None
 
     try:
-        subject = "Your ImpTracker account has been created"
-        context = {
-            "user": new_user,
-            "created_by": _display_name(created_by),
-            "login_url": _absolute_url("/login/"),
-            "change_password_url": _absolute_url("/accounts/profile/change-password/"),
-        }
+        from services.notification_tasks import task_send_user_created_notification
 
-        html_message = render_to_string("emails/user_created.html", context)
-        plain_message = strip_tags(html_message)
-
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[new_user.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
-
-        logger.info(f"User created notification sent to {new_user.email}")
+        task_send_user_created_notification.enqueue(user_id, created_by_id)
         return True
-    except Exception as e:
-        logger.error(f"Failed to send user created notification: {str(e)}")
-        return False
+    except Exception:
+        logger.exception("Failed to enqueue user created notification; falling back to sync")
+        from services.notification_core import send_user_created_notification_sync
+
+        return send_user_created_notification_sync(new_user, created_by=created_by)
 
 
-def send_assignment_notification(activity, recipient_user, assigned_by=None):
-    """
-    Send notification email when an activity is assigned to a user
-    
-    Args:
-        activity: Activity instance
-        recipient_user: User instance receiving the assignment
-        assigned_by: User instance who made the assignment
-    """
+def send_assignment_notification(activity, recipient_user, assigned_by=None) -> bool:
     if not settings.NOTIFICATIONS_ENABLED:
         return False
-    
-    # Check user preferences
-    pref = NotificationPreference.get_or_create_for_user(recipient_user)
-    if not pref.notify_on_assignment:
+
+    activity_id = getattr(activity, "pk", None)
+    recipient_user_id = getattr(recipient_user, "pk", None)
+    if not activity_id or not recipient_user_id:
         return False
-    
+
+    assigned_by_id = getattr(assigned_by, "pk", None) if assigned_by else None
+
     try:
-        subject = f"Activity Assignment: {activity.name}"
-        
-        # Create email context
-        context = {
-            'user': recipient_user,
-            'activity': activity,
-            'assigned_by': assigned_by or 'System',
-            'activity_url': _absolute_url(f"/activities/{activity.id}/"),
-            'status': activity.status.name if activity.status else 'Not Set',
-            'budget': f"{activity.total_budget} {activity.currency.code}" if activity.currency else 'N/A',
-        }
-        
-        # Render HTML email
-        html_message = render_to_string('emails/assignment.html', context)
-        plain_message = strip_tags(html_message)
-        
-        # Create notification log
-        notification = NotificationLog.objects.create(
-            activity=activity,
-            recipient=recipient_user,
-            sender=assigned_by,
-            notification_type='assignment',
-            subject=subject,
-            email_address=recipient_user.email,
-            message=plain_message,
-            created_by=assigned_by,
-            status='pending'
-        )
-        
-        # Send email
-        try:
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[recipient_user.email],
-                html_message=html_message,
-                fail_silently=False,
-            )
-            notification.mark_as_sent()
-            logger.info(f"Assignment notification sent to {recipient_user.email} for activity {activity.id}")
-            return True
-        except Exception as e:
-            notification.mark_as_failed(str(e))
-            logger.error(f"Failed to send assignment notification: {str(e)}")
-            return False
-    
-    except Exception as e:
-        logger.error(f"Error creating assignment notification: {str(e)}")
-        return False
+        from services.notification_tasks import task_send_assignment_notification
+
+        task_send_assignment_notification.enqueue(activity_id, recipient_user_id, assigned_by_id)
+        return True
+    except Exception:
+        logger.exception("Failed to enqueue assignment notification; falling back to sync")
+        from services.notification_core import send_assignment_notification_sync
+
+        return send_assignment_notification_sync(activity, recipient_user, assigned_by=assigned_by)
 
 
-def send_status_change_notification(activity, old_status, new_status, changed_by=None):
-    """
-    Send notification email when activity status changes
-    
-    Args:
-        activity: Activity instance
-        old_status: Previous status
-        new_status: New status
-        changed_by: User who made the change
-    """
+def send_status_change_notification(activity, old_status, new_status, changed_by=None) -> bool:
     if not settings.NOTIFICATIONS_ENABLED:
         return False
-    
-    # Send to responsible officer
-    if not activity.responsible_officer:
+
+    activity_id = getattr(activity, "pk", None)
+    if not activity_id:
         return False
-    
-    # Check preferences
-    pref = NotificationPreference.get_or_create_for_user(activity.responsible_officer)
-    if not pref.notify_on_status_change:
-        return False
-    
+
+    changed_by_id = getattr(changed_by, "pk", None) if changed_by else None
+
     try:
-        subject = f"Status Change: {activity.name}"
-        
-        context = {
-            'user': activity.responsible_officer,
-            'activity': activity,
-            'old_status': old_status,
-            'new_status': new_status,
-            'changed_by': changed_by or 'System',
-            'activity_url': _absolute_url(f"/activities/{activity.id}/"),
-        }
-        
-        html_message = render_to_string('emails/status_change.html', context)
-        plain_message = strip_tags(html_message)
-        
-        notification = NotificationLog.objects.create(
-            activity=activity,
-            recipient=activity.responsible_officer,
-            sender=changed_by,
-            notification_type='status_change',
-            subject=subject,
-            email_address=activity.responsible_officer.email,
-            message=plain_message,
-            created_by=changed_by,
-            status='pending'
-        )
-        
-        try:
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[activity.responsible_officer.email],
-                html_message=html_message,
-                fail_silently=False,
-            )
-            notification.mark_as_sent()
-            logger.info(f"Status change notification sent to {activity.responsible_officer.email}")
-            return True
-        except Exception as e:
-            notification.mark_as_failed(str(e))
-            logger.error(f"Failed to send status change notification: {str(e)}")
-            return False
-    
-    except Exception as e:
-        logger.error(f"Error creating status change notification: {str(e)}")
-        return False
+        from services.notification_tasks import task_send_status_change_notification
+
+        task_send_status_change_notification.enqueue(activity_id, old_status, new_status, changed_by_id)
+        return True
+    except Exception:
+        logger.exception("Failed to enqueue status change notification; falling back to sync")
+        from services.notification_core import send_status_change_notification_sync
+
+        return send_status_change_notification_sync(activity, old_status, new_status, changed_by=changed_by)
 
 
-def send_due_date_alert(activity, days_remaining):
-    """
-    Send due date reminder email
-    
-    Args:
-        activity: Activity instance
-        days_remaining: Number of days until due date
-    """
+def send_due_date_alert(activity, days_remaining) -> bool:
     if not settings.NOTIFICATIONS_ENABLED:
         return False
-    
-    if not activity.responsible_officer:
+
+    activity_id = getattr(activity, "pk", None)
+    if not activity_id:
         return False
-    
-    pref = NotificationPreference.get_or_create_for_user(activity.responsible_officer)
-    if not pref.notify_on_due_date_alert:
-        return False
-    
+
     try:
-        subject = f"Due Date Reminder: {activity.name} due in {days_remaining} days"
-        
-        context = {
-            'user': activity.responsible_officer,
-            'activity': activity,
-            'days_remaining': days_remaining,
-            'due_date': activity.planned_month.strftime('%B %d, %Y') if activity.planned_month else 'Not set',
-            'activity_url': _absolute_url(f"/activities/{activity.id}/"),
-        }
-        
-        html_message = render_to_string('emails/due_date_alert.html', context)
-        plain_message = strip_tags(html_message)
-        
-        notification = NotificationLog.objects.create(
-            activity=activity,
-            recipient=activity.responsible_officer,
-            notification_type='due_date_alert',
-            subject=subject,
-            email_address=activity.responsible_officer.email,
-            message=plain_message,
-            status='pending'
-        )
-        
-        try:
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[activity.responsible_officer.email],
-                html_message=html_message,
-                fail_silently=False,
-            )
-            notification.mark_as_sent()
-            logger.info(f"Due date alert sent to {activity.responsible_officer.email}")
-            return True
-        except Exception as e:
-            notification.mark_as_failed(str(e))
-            logger.error(f"Failed to send due date alert: {str(e)}")
-            return False
-    
-    except Exception as e:
-        logger.error(f"Error creating due date alert: {str(e)}")
-        return False
+        from services.notification_tasks import task_send_due_date_alert
+
+        task_send_due_date_alert.enqueue(activity_id, int(days_remaining))
+        return True
+    except Exception:
+        logger.exception("Failed to enqueue due date alert; falling back to sync")
+        from services.notification_core import send_due_date_alert_sync
+
+        return send_due_date_alert_sync(activity, int(days_remaining))
 
 
-def send_activity_update_notification(activity, update_description, notified_users=None):
-    """
-    Send activity update notification to responsible officer and/or specific users
-    
-    Args:
-        activity: Activity instance
-        update_description: Description of what changed
-        notified_users: List of User instances to notify (defaults to responsible officer)
-    """
+def send_activity_update_notification(activity, update_description, notified_users=None) -> bool:
     if not settings.NOTIFICATIONS_ENABLED:
         return False
-    
-    if notified_users is None:
-        if activity.responsible_officer:
-            notified_users = [activity.responsible_officer]
-        else:
-            return False
-    
-    sent_count = 0
-    for user in notified_users:
-        try:
-            pref = NotificationPreference.get_or_create_for_user(user)
-            if not pref.notify_on_activity_update:
-                continue
-            
-            subject = f"Activity Update: {activity.name}"
-            
-            context = {
-                'user': user,
-                'activity': activity,
-                'update': update_description,
-                'activity_url': _absolute_url(f"/activities/{activity.id}/"),
-            }
-            
-            html_message = render_to_string('emails/activity_update.html', context)
-            plain_message = strip_tags(html_message)
-            
-            notification = NotificationLog.objects.create(
-                activity=activity,
-                recipient=user,
-                notification_type='update',
-                subject=subject,
-                email_address=user.email,
-                message=plain_message,
-                status='pending'
-            )
-            
-            try:
-                send_mail(
-                    subject=subject,
-                    message=plain_message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    html_message=html_message,
-                    fail_silently=False,
-                )
-                notification.mark_as_sent()
-                sent_count += 1
-                logger.info(f"Activity update notification sent to {user.email}")
-            except Exception as e:
-                notification.mark_as_failed(str(e))
-                logger.error(f"Failed to send activity update notification: {str(e)}")
-        
-        except Exception as e:
-            logger.error(f"Error sending activity update notification: {str(e)}")
-    
-    return sent_count > 0
+
+    activity_id = getattr(activity, "pk", None)
+    if not activity_id:
+        return False
+
+    user_ids = None
+    if notified_users is not None:
+        user_ids = [u.pk for u in notified_users if getattr(u, "pk", None)]
+
+    try:
+        from services.notification_tasks import task_send_activity_update_notification
+
+        task_send_activity_update_notification.enqueue(activity_id, str(update_description), user_ids)
+        return True
+    except Exception:
+        logger.exception("Failed to enqueue activity update notification; falling back to sync")
+        from services.notification_core import send_activity_update_notification_sync
+
+        return send_activity_update_notification_sync(activity, update_description, notified_users=notified_users)
 
 
 def retry_failed_notifications(max_retries=3):
-    """
-    Retry sending failed notifications
-    
-    Args:
-        max_retries: Maximum number of retries
-    """
+    """Retry sending failed notifications synchronously."""
+    from django.core.mail import send_mail
+
     failed_notifications = NotificationLog.objects.filter(
-        status='failed',
-        retry_count__lt=max_retries
-    ).order_by('created_at')[:10]
-    
+        status="failed",
+        retry_count__lt=max_retries,
+    ).order_by("created_at")[:10]
+
     retry_count = 0
     for notification in failed_notifications:
         try:
-            notification.status = 'retrying'
+            notification.status = "retrying"
             notification.save()
-            
+
             send_mail(
                 subject=notification.subject,
                 message=notification.message,
@@ -374,9 +148,9 @@ def retry_failed_notifications(max_retries=3):
             )
             notification.mark_as_sent()
             retry_count += 1
-            logger.info(f"Retry sent for notification {notification.id}")
+            logger.info("Retry sent for notification %s", notification.id)
         except Exception as e:
             notification.mark_as_failed(str(e))
-            logger.error(f"Retry failed for notification {notification.id}: {str(e)}")
-    
+            logger.error("Retry failed for notification %s: %s", notification.id, str(e))
+
     return retry_count
