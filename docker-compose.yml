@@ -17,6 +17,8 @@ services:
     volumes:
       - staticfiles:/app/staticfiles
       - media:/app/media
+    ports:
+      - "8080:8000"
     restart: unless-stopped
 
   db:
@@ -65,6 +67,7 @@ services:
       - media:/var/www/media:ro
       - ./certbot/www:/var/www/certbot:ro
       - ./certbot/conf:/etc/letsencrypt:ro
+    profiles: ["nginx"]
     restart: unless-stopped
 
   certbot:
@@ -76,4 +79,5 @@ services:
       - ./certbot/www:/var/www/certbot
     entrypoint: /bin/sh
     command: -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+    profiles: ["nginx"]
     restart: unless-stopped

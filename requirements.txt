@@ -11,3 +11,4 @@ reportlab
 python-dotenv
 crispy-bootstrap5
 gunicorn
+whitenoise
