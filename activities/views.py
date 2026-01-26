@@ -44,7 +44,11 @@ def activities_list(request):
     if not can_view_activities(request.user):
         return HttpResponseForbidden("You do not have permission to view activities")
     
-    qs = Activity.objects.prefetch_related('clusters', 'funders', 'status').order_by('-year', 'activity_id')
+    qs = (
+        Activity.objects.select_related('status', 'currency', 'responsible_officer')
+        .prefetch_related('clusters', 'funders')
+        .order_by('-year', 'activity_id')
+    )
 
     # Get unique years from activities for dropdown, sorted descending
     available_years = sorted(Activity.objects.values_list('year', flat=True).distinct(), reverse=True)
@@ -55,6 +59,7 @@ def activities_list(request):
     funder = request.GET.get('funder')
     status = request.GET.get('status')
     quarter = request.GET.get('quarter')
+    assigned_to = request.GET.get('assigned_to', 'all')
     q = request.GET.get('q')  # Search query
     procurement_status = request.GET.get('procurement_status', 'all')  # New filter
     recurring_filter = request.GET.get('recurring', 'all')  # New filter
@@ -69,16 +74,44 @@ def activities_list(request):
         except ValueError:
             pass
     
+    needs_distinct = False
+
     if cluster:
-        qs = qs.filter(clusters__short_name=cluster)
+        if cluster.isdigit():
+            qs = qs.filter(clusters__id=int(cluster))
+        else:
+            qs = qs.filter(clusters__short_name=cluster)
+        needs_distinct = True
+
     if funder:
-        qs = qs.filter(funders__code=funder) if funder.isdigit() == False else qs.filter(funders__id=funder)
+        if funder.isdigit():
+            qs = qs.filter(funders__id=int(funder))
+        else:
+            qs = qs.filter(funders__code=funder)
+        needs_distinct = True
+
     if status:
-        qs = qs.filter(status__name=status)
+        if status.isdigit():
+            qs = qs.filter(status__id=int(status))
+        else:
+            qs = qs.filter(status__name=status)
+
     if quarter:
-        qs = qs.filter(quarter=quarter)
+        try:
+            qs = qs.filter(quarter=int(quarter))
+        except ValueError:
+            pass
+
+    if assigned_to == 'me':
+        qs = qs.filter(responsible_officer=request.user)
+    elif assigned_to == 'unassigned':
+        qs = qs.filter(responsible_officer__isnull=True)
+
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(activity_id__icontains=q))
+
+    if needs_distinct:
+        qs = qs.distinct()
     
     # Procurement filter
     if procurement_status == 'procurement_only':
@@ -121,7 +154,17 @@ def activities_list(request):
         'statuses': ActivityStatus.objects.all(),
         'users': User.objects.filter(is_active=True),
         'years': available_years,
-        'filters': {'year': year, 'cluster': cluster, 'funder': funder, 'status': status, 'quarter': quarter, 'q': q, 'procurement_status': procurement_status, 'recurring': recurring_filter},
+        'filters': {
+            'year': year,
+            'cluster': cluster,
+            'funder': funder,
+            'status': status,
+            'quarter': quarter,
+            'assigned_to': assigned_to,
+            'q': q,
+            'procurement_status': procurement_status,
+            'recurring': recurring_filter,
+        },
         'sort': sort,
         'dir': direction,
         'can_create': can_manage_activities(request.user),
@@ -732,13 +775,74 @@ def procurement_list(request):
     if not can_view_activities(request.user):
         return HttpResponseForbidden("You do not have permission to view activities")
     
-    # Filter activities with procurement
-    activities = Activity.objects.filter(
-        Q(is_procurement=True) | Q(has_partial_procurement=True)
-    ).select_related('status', 'currency', 'responsible_officer').prefetch_related('clusters', 'funders').order_by('-year', 'activity_id')
-    
+    qs = (
+        Activity.objects.filter(Q(is_procurement=True) | Q(has_partial_procurement=True))
+        .select_related('status', 'currency', 'responsible_officer')
+        .prefetch_related('clusters', 'funders')
+        .order_by('-year', 'activity_id')
+    )
+
+    status = request.GET.get('status')
+    funder = request.GET.get('funder')
+    cluster = request.GET.get('cluster')
+    quarter = request.GET.get('quarter')
+    assigned_to = request.GET.get('assigned_to', 'all')
+    procurement_type = request.GET.get('procurement_type', 'all')  # all | full | partial
+
+    needs_distinct = False
+
+    if status:
+        if status.isdigit():
+            qs = qs.filter(status__id=int(status))
+        else:
+            qs = qs.filter(status__name=status)
+
+    if funder:
+        if funder.isdigit():
+            qs = qs.filter(funders__id=int(funder))
+        else:
+            qs = qs.filter(funders__code=funder)
+        needs_distinct = True
+
+    if cluster:
+        if cluster.isdigit():
+            qs = qs.filter(clusters__id=int(cluster))
+        else:
+            qs = qs.filter(clusters__short_name=cluster)
+        needs_distinct = True
+
+    if quarter:
+        try:
+            qs = qs.filter(quarter=int(quarter))
+        except ValueError:
+            pass
+
+    if assigned_to == 'me':
+        qs = qs.filter(responsible_officer=request.user)
+    elif assigned_to == 'unassigned':
+        qs = qs.filter(responsible_officer__isnull=True)
+
+    if procurement_type == 'full':
+        qs = qs.filter(is_procurement=True)
+    elif procurement_type == 'partial':
+        qs = qs.filter(has_partial_procurement=True)
+
+    if needs_distinct:
+        qs = qs.distinct()
+
     context = {
-        'activities': activities
+        'activities': qs,
+        'clusters': Cluster.objects.all(),
+        'funders': Funder.objects.all(),
+        'statuses': ActivityStatus.objects.all(),
+        'filters': {
+            'status': status,
+            'funder': funder,
+            'cluster': cluster,
+            'quarter': quarter,
+            'assigned_to': assigned_to,
+            'procurement_type': procurement_type,
+        },
     }
     return render(request, 'activities/procurement_list.html', context)
 
