@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.core.exceptions import ValidationError
@@ -45,13 +46,13 @@ def activities_list(request):
         return HttpResponseForbidden("You do not have permission to view activities")
     
     qs = (
-        Activity.objects.select_related('status', 'currency', 'responsible_officer')
+        Activity.objects.filter(retired=False).select_related('status', 'currency', 'responsible_officer')
         .prefetch_related('clusters', 'funders')
         .order_by('-year', 'activity_id')
     )
 
     # Get unique years from activities for dropdown, sorted descending
-    available_years = sorted(Activity.objects.values_list('year', flat=True).distinct(), reverse=True)
+    available_years = sorted(Activity.objects.filter(retired=False).values_list('year', flat=True).distinct(), reverse=True)
     
     # Filters
     year = request.GET.get('year')
@@ -175,14 +176,14 @@ def activities_list(request):
 
 @login_required
 def activity_detail(request, pk):
-    a = get_object_or_404(Activity, pk=pk)
+    a = get_object_or_404(Activity, pk=pk, retired=False)
     audit_logs = AuditLog.objects.filter(
         activity_id=pk
     ).select_related('user').order_by('-timestamp')[:50]
     
     can_edit = can_edit_activities(request.user)
     can_delete = can_manage_activities(request.user)
-    available_years = sorted(Activity.objects.values_list('year', flat=True).distinct(), reverse=True)
+    available_years = sorted(Activity.objects.filter(retired=False).values_list('year', flat=True).distinct(), reverse=True)
     
     context = {
         'activity': a,
@@ -203,7 +204,7 @@ def activity_detail(request, pk):
 
 @login_required
 def edit_activity(request, pk):
-    activity = get_object_or_404(Activity, pk=pk)
+    activity = get_object_or_404(Activity, pk=pk, retired=False)
     
     if not can_edit_activities(request.user):
         return HttpResponseForbidden("You do not have permission to edit activities")
@@ -401,10 +402,11 @@ def create_activity(request):
 @login_required
 def delete_activity(request, pk):
     """Soft delete an activity - mark as retired (Data Manager, System Admin only)"""
-    activity = get_object_or_404(Activity, pk=pk)
+    activity = get_object_or_404(Activity, pk=pk, retired=False)
     
     if not can_manage_activities(request.user):
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        messages.error(request, 'Permission denied')
+        return redirect('activities_list')
     
     if request.method == 'POST':
         activity.retired = True
@@ -418,9 +420,11 @@ def delete_activity(request, pk):
             change_description='Activity marked as retired'
         )
         
-        return JsonResponse({'success': True, 'redirect': '/activities/'})
+        messages.success(request, f'Activity "{activity.name}" has been deleted successfully.')
+        return redirect('activities_list')
     
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
+    messages.error(request, 'Invalid request method')
+    return redirect('activities_list')
 
 
 @login_required
@@ -438,7 +442,7 @@ def bulk_action(request):
             if not activity_ids:
                 return JsonResponse({'error': 'No activities selected'}, status=400)
             
-            qs = Activity.objects.filter(id__in=activity_ids)
+            qs = Activity.objects.filter(id__in=activity_ids, retired=False)
             results = {'updated': 0, 'errors': []}
             
             if action == 'update_status':
@@ -519,7 +523,7 @@ def upload_attachment(request, pk):
     if not can_edit_activities(request.user):
         return HttpResponseForbidden("You do not have permission to upload attachments")
     
-    activity = get_object_or_404(Activity, pk=pk)
+    activity = get_object_or_404(Activity, pk=pk, retired=False)
     
     if request.method == 'POST':
         form = ActivityAttachmentForm(request.POST, request.FILES)
@@ -597,7 +601,7 @@ def list_attachments(request, pk):
     if not can_view_activities(request.user):
         return HttpResponseForbidden("You do not have permission to view attachments")
     
-    activity = get_object_or_404(Activity, pk=pk)
+    activity = get_object_or_404(Activity, pk=pk, retired=False)
     
     # Get all non-deleted attachments grouped by document type
     attachments = ActivityAttachment.objects.filter(
@@ -669,7 +673,7 @@ def get_attachment_versions(request, pk):
     if not can_view_activities(request.user):
         return HttpResponseForbidden("You do not have permission to view attachments")
     
-    activity = get_object_or_404(Activity, pk=pk)
+    activity = get_object_or_404(Activity, pk=pk, retired=False)
     document_type = request.GET.get('type', '')
     
     if not document_type:
@@ -708,7 +712,7 @@ def update_activity_field(request, pk):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
     
-    activity = get_object_or_404(Activity, pk=pk)
+    activity = get_object_or_404(Activity, pk=pk, retired=False)
     
     # Check permissions: must be data manager or responsible officer
     is_data_manager = has_role(request.user, 'Data Manager') or has_role(request.user, 'System Admin')

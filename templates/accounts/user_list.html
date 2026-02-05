@@ -164,11 +164,21 @@ function confirmDeactivate(userId, username) {
 
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('usersTable')) {
-        new DataTable('#usersTable', {
+        const table = new DataTable('#usersTable', {
             pageLength: 25,
             order: [[0, 'asc']],
             columnDefs: [{ orderable: false, targets: [3, 4, 5] }]
         });
+        
+        // Clear any existing search on page load
+        table.search('').draw();
+        
+        // Disable autocomplete on the search input to prevent browser autofill
+        const searchInput = document.querySelector('.dataTables_filter input');
+        if (searchInput) {
+            searchInput.setAttribute('autocomplete', 'off');
+            searchInput.setAttribute('data-form-type', 'other');
+        }
     }
 });
 </script>
