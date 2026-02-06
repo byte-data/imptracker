@@ -345,6 +345,8 @@ def edit_activity(request, pk):
                     activity_id=updated_activity.id,
                     change_description='Activity edited via form'
                 )
+                
+                messages.success(request, f'Activity "{updated_activity.name}" updated successfully!')
                 return redirect('activity_detail', pk=updated_activity.pk)
             else:
                 context = {
@@ -386,6 +388,8 @@ def create_activity(request):
                 activity_id=activity.id,
                 change_description='New activity created'
             )
+            
+            messages.success(request, f'Activity "{activity.name}" created successfully!')
             return redirect('activity_detail', pk=activity.pk)
     else:
         form = ActivityForm()

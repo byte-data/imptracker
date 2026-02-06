@@ -187,21 +187,25 @@
     </div>
     {% endif %}
 
-    <!-- Messages -->
-    {% if messages %}
-    <div class="container-fluid px-3 px-md-4 mt-3">
+    <!-- Messages as Toasts -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+      {% if messages %}
       {% for message in messages %}
-      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        {% if message.tags == 'success' %}<i class="bi bi-check-circle me-2"></i>{% endif %}
-        {% if message.tags == 'error' or message.tags == 'danger' %}<i class="bi bi-exclamation-circle me-2"></i>{% endif %}
-        {% if message.tags == 'warning' %}<i class="bi bi-exclamation-triangle me-2"></i>{% endif %}
-        {% if message.tags == 'info' %}<i class="bi bi-info-circle me-2"></i>{% endif %}
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      <div class="toast align-items-center text-white bg-{{ message.tags }}{% if message.tags == 'error' %}-danger{% endif %} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000">
+        <div class="d-flex">
+          <div class="toast-body">
+            {% if message.tags == 'success' %}<i class="bi bi-check-circle me-2"></i>{% endif %}
+            {% if message.tags == 'error' or message.tags == 'danger' %}<i class="bi bi-exclamation-circle me-2"></i>{% endif %}
+            {% if message.tags == 'warning' %}<i class="bi bi-exclamation-triangle me-2"></i>{% endif %}
+            {% if message.tags == 'info' %}<i class="bi bi-info-circle me-2"></i>{% endif %}
+            {{ message }}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
       </div>
       {% endfor %}
+      {% endif %}
     </div>
-    {% endif %}
 
     <!-- Main Content -->
     <main class="flex-fill">
@@ -250,6 +254,16 @@
         document.addEventListener('shown.bs.collapse', syncNavbarHeight);
         document.addEventListener('hidden.bs.collapse', syncNavbarHeight);
       })();
+
+      // Auto-show toast notifications
+      document.addEventListener('DOMContentLoaded', function() {
+        var toastElements = document.querySelectorAll('.toast');
+        toastElements.forEach(function(toastEl) {
+          var toast = new bootstrap.Toast(toastEl);
+          toast.show();
+        });
+      });
+    </script>
     </script>
     
     {% block page_js %}{% endblock %}
