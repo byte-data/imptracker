@@ -3,7 +3,7 @@ from django.db import models
 from django.conf import settings
 from masters.models import Funder, ActivityStatus, Currency, ProcurementType
 from accounts.models import Cluster
-from django.db import transaction
+from django.db import transaction, IntegrityError
 import calendar
 from datetime import date
 
@@ -177,8 +177,8 @@ class Activity(models.Model):
         return max_seq + 1
 
     def save(self, *args, **kwargs):
-        # Ensure year is populated (derive from planned_month if missing)
-        if not self.year and self.planned_month:
+        # Ensure year is populated from planned_month
+        if self.planned_month:
             self.year = self.planned_month.year
 
         # Ensure planned_month stored as last day of month
@@ -190,16 +190,30 @@ class Activity(models.Model):
         if not self.activity_id:
             if not self.year:
                 self.year = date.today().year
-            yy = str(self.year)[-2:]
-            with transaction.atomic():
-                seq = self._next_sequence_for_year(self.year)
-                self.activity_id = f"Y{yy}-{seq:06d}"
 
         # Ensure currency default if not set
         if not self.currency:
             default_currency = Currency.objects.filter(is_default=True).first()
             if default_currency:
                 self.currency = default_currency
+
+        # Handle safe concurrent creation (retry on activity_id collision)
+        if not self.activity_id and self._state.adding:
+            last_error = None
+            yy = str(self.year)[-2:]
+            seq = self._next_sequence_for_year(self.year)
+            for attempt in range(10):  # Increased retries
+                try:
+                    with transaction.atomic():
+                        self.activity_id = f"Y{yy}-{seq:06d}"
+                        super().save(*args, **kwargs)
+                    return
+                except IntegrityError as e:
+                    last_error = e
+                    seq += 1  # Increment sequence on collision
+                    continue
+            # If still failing after retries, bubble up
+            raise last_error
         
         # Auto-set has_partial_procurement flag based on procurement_amount or breakdowns
         from decimal import Decimal

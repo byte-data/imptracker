@@ -25,7 +25,7 @@ class ActivityForm(forms.ModelForm):
     class Meta:
         model = Activity
         fields = [
-            'name', 'year', 'clusters', 'funders', 'status', 
+            'name', 'clusters', 'funders', 'status', 
             'planned_month', 'total_budget', 'disbursed_amount', 
             'currency', 'responsible_officer', 'notes',
             # Recurrence fields
@@ -35,7 +35,6 @@ class ActivityForm(forms.ModelForm):
         ]
         widgets = {
             'name': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'Activity name/description'}),
-            'year': forms.NumberInput(attrs={'class': 'form-control', 'min': 2020, 'max': 2050}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'planned_month': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'total_budget': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
@@ -55,7 +54,6 @@ class ActivityForm(forms.ModelForm):
         }
         labels = {
             'name': 'Activity Name',
-            'year': 'Year',
             'status': 'Implementation Status',
             'planned_month': 'Planned Month',
             'total_budget': 'Total Budget',

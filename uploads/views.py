@@ -157,7 +157,7 @@ def upload_activities(request):
             pass
         # Fallback to pandas flexible parsing
         try:
-            ts = pd.to_datetime(s, dayfirst=True, errors='coerce')
+            ts = pd.to_datetime(s, errors='coerce')
             if pd.isna(ts):
                 return None
             # convert to last day of month
@@ -388,6 +388,12 @@ def upload_activities(request):
             notes = row.get('Key Notes')
             activity_id = row.get('Activity ID') or row.get('activity_id')
 
+            # Skip completely blank rows
+            if (_is_blank(name) and _is_blank(planned) and _is_blank(status_name) and 
+                _is_blank(budget) and _is_blank(cluster_name) and _is_blank(funder_name)):
+                skipped += 1
+                continue
+
             # Check user decision for this row
             decision = user_decisions.get(str(row_num), 'create')
             if decision == 'skip':
@@ -407,8 +413,9 @@ def upload_activities(request):
 
             if _is_blank(status_name):
                 if not default_status:
+                    activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
                     errors.append(
-                        f'Row {row_num}: missing Implementation Status. '
+                        f'Row {row_num} ({activity_name}): missing Implementation Status. '
                         'Ask the system admin to add "Not Implemented" status and re-upload.'
                     )
                     logger.warning('Upload row %s skipped: missing Implementation Status and default is missing', row_num)
@@ -419,8 +426,9 @@ def upload_activities(request):
                 status_key = _normalize_key(status_name)
                 status = status_map.get(status_key)
                 if not status:
+                    activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
                     errors.append(
-                        f'Row {row_num}: invalid Status "{status_name}". '
+                        f'Row {row_num} ({activity_name}): invalid Status "{status_name}". '
                         'Ask the system admin to add this status and re-upload.'
                     )
                     logger.warning('Upload row %s skipped: invalid Status "%s"', row_num, status_name)
@@ -442,7 +450,8 @@ def upload_activities(request):
                             short = ''.join([ch for ch in p.upper() if ch.isalnum()])[:20] or p[:20]
                             c = Cluster.objects.create(short_name=short, full_name=p)
                         else:
-                            errors.append(f'Row {row_num}: unknown Cluster "{p}" - please confirm creation in the staging view')
+                            activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
+                            errors.append(f'Row {row_num} ({activity_name}): unknown Cluster "{p}" - please confirm creation in the staging view')
                             logger.warning('Upload row %s unknown Cluster "%s"', row_num, p)
                             c = None
                     if c:
@@ -469,7 +478,8 @@ def upload_activities(request):
                                 i += 1
                             f = Funder.objects.create(code=code, name=p, active=True)
                         else:
-                            errors.append(f'Row {row_num}: unknown Funder "{p}" - please confirm creation in the staging view')
+                            activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
+                            errors.append(f'Row {row_num} ({activity_name}): unknown Funder "{p}" - please confirm creation in the staging view')
                             logger.warning('Upload row %s unknown Funder "%s"', row_num, p)
                             f = None
                     if f:
@@ -481,11 +491,13 @@ def upload_activities(request):
                 if parsed:
                     planned_month = parsed
                 else:
-                    errors.append(f'Row {row_num}: invalid date format for "{planned}"')
+                    activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
+                    errors.append(f'Row {row_num} ({activity_name}): invalid date format for "{planned}"')
                     logger.warning('Upload row %s skipped: invalid date format "%s"', row_num, planned)
                     continue
             if not planned_month:
-                errors.append(f'Row {row_num}: Planned Implementation Month is required')
+                activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
+                errors.append(f'Row {row_num} ({activity_name}): Planned Implementation Month is required')
                 logger.warning('Upload row %s skipped: Planned Implementation Month is required', row_num)
                 continue
 
@@ -495,11 +507,15 @@ def upload_activities(request):
             try:
                 if not _is_blank(budget):
                     budget_str = str(budget).strip().replace(',', '').replace(' ', '')
-                    total_budget = float(budget_str)
+                    if budget_str in ('', '-'):
+                        total_budget = 0
+                    else:
+                        total_budget = float(budget_str)
                 else:
                     total_budget = 0
             except (ValueError, AttributeError):
-                errors.append(f'Row {row_num}: invalid budget amount "{budget}"')
+                activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
+                errors.append(f'Row {row_num} ({activity_name}): invalid budget amount "{budget}"')
                 logger.warning('Upload row %s skipped: invalid budget amount "%s"', row_num, budget)
                 continue
 
@@ -508,7 +524,10 @@ def upload_activities(request):
             try:
                 if not _is_blank(disbursed):
                     disb_str = str(disbursed).strip().replace(',', '').replace(' ', '')
-                    disbursed_amount = float(disb_str)
+                    if disb_str in ('', '-'):
+                        disbursed_amount = 0
+                    else:
+                        disbursed_amount = float(disb_str)
                 else:
                     disbursed_amount = 0
             except (ValueError, AttributeError):
@@ -574,10 +593,12 @@ def upload_activities(request):
                     AuditLog.objects.create(user=request_user, action='Activity created via upload', object_repr=str(act))
                     created += 1
             except ValidationError as ve:
-                errors.append(f'Row {row_num}: validation error: {ve.message_dict if hasattr(ve, "message_dict") else ve}')
+                activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
+                errors.append(f'Row {row_num} ({activity_name}): validation error: {ve.message_dict if hasattr(ve, "message_dict") else ve}')
                 logger.exception('Upload row %s validation error', row_num)
             except Exception as e:
-                errors.append(f'Row {row_num}: failed to process activity: {e}')
+                activity_name = _normalize_text(name) if not _is_blank(name) else "No Name"
+                errors.append(f'Row {row_num} ({activity_name}): failed to process activity: {e}')
                 logger.exception('Upload row %s failed to process activity', row_num)
 
         return created, updated, skipped, errors
@@ -645,7 +666,10 @@ def upload_activities(request):
                 messages.success(request, f'Upload successful! {", ".join(msg_parts)}.')
             
             if errors:
-                messages.warning(request, f'Upload completed with {len(errors)} error(s). Please review.')
+                error_details = "; ".join(errors[:5])  # Show first 5 errors
+                if len(errors) > 5:
+                    error_details += f"; ... and {len(errors) - 5} more"
+                messages.warning(request, f'Upload completed with {len(errors)} error(s): {error_details}')
                 logger.warning('Upload completed with %s errors. Sample: %s', len(errors), errors[:10])
         finally:
             if not keep_staged:

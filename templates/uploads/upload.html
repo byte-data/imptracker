@@ -3,6 +3,27 @@
 
 {% block title %}Upload Activities{% endblock %}
 
+{% block extra_head %}
+<style>
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+}
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+</style>
+{% endblock %}
+
 {% block breadcrumb %}
 <li class="breadcrumb-item active" aria-current="page">Upload</li>
 {% endblock %}
@@ -46,7 +67,15 @@
       <i class="bi bi-file-earmark-spreadsheet me-2"></i>Upload File (CSV or Excel)
     </h5>
   </div>
-  <div class="card-body">
+  <div class="card-body position-relative">
+    <div id="confirmLoading" class="loading-overlay d-none">
+      <div class="text-center">
+        <div class="spinner-border text-primary mb-2" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mb-0">Loading activities...</p>
+      </div>
+    </div>
     {% if summary %}
       <div class="alert alert-info mb-4">
         <i class="bi bi-info-circle me-2"></i>
@@ -379,6 +408,13 @@
               e.preventDefault();
               return false;
             }
+            
+            // Show loading spinner
+            const loading = document.getElementById('confirmLoading');
+            const btn = document.getElementById('submitBtn');
+            loading.classList.remove('d-none');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
           });
         </script>
       {% else %}
@@ -431,8 +467,16 @@
               unknowns.forEach(function(ch){ if (ch.checked) anyChecked = true; });
               if (!anyChecked) {
                 e.preventDefault();
+                return;
               }
             }
+            
+            // Show loading spinner
+            const loading = document.getElementById('confirmLoading');
+            const btn = this.querySelector('button[type="submit"]');
+            loading.classList.remove('d-none');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
           });
         </script>
       {% endif %}
@@ -441,7 +485,15 @@
       <div class="row g-3">
         <div class="col-lg-8">
           <div class="card">
-            <div class="card-body">
+            <div class="card-body position-relative">
+              <div id="uploadLoading" class="loading-overlay d-none">
+                <div class="text-center">
+                  <div class="spinner-border text-primary mb-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <p class="mb-0">Processing file...</p>
+                </div>
+              </div>
               <form method="post" enctype="multipart/form-data" id="uploadForm">
                 {% csrf_token %}
                 <div class="mb-3">
@@ -598,6 +650,19 @@
           const i = Math.floor(Math.log(bytes) / Math.log(k));
           return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
+        
+        // Handle upload form submission
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+          const loading = document.getElementById('uploadLoading');
+          const btn = document.getElementById('uploadBtn');
+          
+          // Show loading overlay
+          loading.classList.remove('d-none');
+          
+          // Disable button and change text
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
+        });
       </script>
     {% endif %}
   </div>
