@@ -4,6 +4,7 @@ import tempfile
 from datetime import date
 from collections import Counter
 import calendar
+import logging
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
@@ -20,6 +21,8 @@ from activities.models import Activity
 from masters.models import Currency
 from django.core.exceptions import ValidationError
 from audit.models import AuditLog
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -52,7 +55,16 @@ def upload_activities(request):
         fname = original_name.lower()
         try:
             if fname.endswith('.csv'):
-                return pd.read_csv(file_path)
+                # Try common encodings to handle files saved from Excel/Windows
+                encodings = ['utf-8', 'utf-8-sig', 'cp1252', 'latin1']
+                last_error = None
+                for enc in encodings:
+                    try:
+                        return pd.read_csv(file_path, encoding=enc)
+                    except Exception as e:
+                        last_error = e
+                        continue
+                raise last_error or ValueError('Unsupported CSV encoding.')
             elif fname.endswith(('.xlsx', '.xls')):
                 return pd.read_excel(file_path, engine='openpyxl')
             else:
@@ -71,6 +83,17 @@ def upload_activities(request):
             pass
         s = str(val).strip()
         return s == '' or s.lower() in ('nan', 'none')
+
+    def _normalize_text(val):
+        if val is None:
+            return ''
+        # Normalize whitespace and non-breaking spaces
+        s = str(val).replace('\u00a0', ' ').strip()
+        s = ' '.join(s.split())
+        return s
+
+    def _normalize_key(val):
+        return _normalize_text(val).lower()
     def _normalize_columns(df: pd.DataFrame):
         # Normalize column names to expected canonical headers
         cols = list(df.columns)
@@ -167,6 +190,14 @@ def upload_activities(request):
         updates = []
         has_id_column = 'Activity ID' in df.columns or 'activity_id' in df.columns
 
+        status_map = {
+            _normalize_key(s.name): s for s in ActivityStatus.objects.all()
+        }
+        available_statuses = [s.name for s in ActivityStatus.objects.all().order_by('name')]
+        default_status = ActivityStatus.objects.filter(name__iexact='Not Implemented').first()
+        unknown_statuses = set()
+        default_status_missing = False
+
         unknown_funders = set()
         unknown_clusters = set()
         funder_suggestions = {}
@@ -214,8 +245,18 @@ def upload_activities(request):
                         similar = list(Funder.objects.filter(name__icontains=p[:4]).values_list('name', flat=True)[:5])
                         if similar:
                             funder_suggestions[p] = similar
-            if status_name:
-                statuses[status_name] += 1
+            if _is_blank(status_name):
+                if default_status:
+                    statuses[default_status.name] += 1
+                else:
+                    default_status_missing = True
+                    statuses['Not Implemented'] += 1
+                    unknown_statuses.add('Not Implemented')
+            else:
+                normalized_status = _normalize_text(status_name)
+                statuses[normalized_status] += 1
+                if _normalize_key(normalized_status) not in status_map:
+                    unknown_statuses.add(normalized_status)
 
             parsed_dt = None
             if planned:
@@ -286,6 +327,15 @@ def upload_activities(request):
                     # Ignore duplicate-checking errors to avoid breaking staging
                     pass
 
+        status_checks = [
+            {
+                'name': status_name,
+                'count': count,
+                'valid': _normalize_key(status_name) in status_map
+            }
+            for status_name, count in statuses.most_common()
+        ]
+
         return {
             'total_rows': total_rows,
             'budget_sum': budget_sum,
@@ -293,6 +343,10 @@ def upload_activities(request):
             'clusters': clusters.most_common(),
             'funders': funders.most_common(),
             'statuses': statuses.most_common(),
+            'status_checks': status_checks,
+            'unknown_statuses': sorted(list(unknown_statuses)),
+            'available_statuses': available_statuses,
+            'default_status_missing': default_status_missing,
             'years': years.most_common(),
             'invalid_dates': invalid_dates,
             'first_date': first_date.strftime('%Y-%m-%d') if first_date else None,
@@ -318,6 +372,10 @@ def upload_activities(request):
         skipped = 0
         errors = []
         user_decisions = user_decisions or {}
+        status_map = {
+            _normalize_key(s.name): s for s in ActivityStatus.objects.all()
+        }
+        default_status = ActivityStatus.objects.filter(name__iexact='Not Implemented').first()
         
         for idx, row in df.iterrows():
             row_num = idx + 2
@@ -339,6 +397,7 @@ def upload_activities(request):
             # Mandatory checks
             if not name:
                 errors.append(f'Row {row_num}: missing Activity Name')
+                logger.warning('Upload row %s skipped: missing Activity Name', row_num)
                 continue
             # Budget and disbursed default to 0 if blank
             if _is_blank(budget):
@@ -346,17 +405,27 @@ def upload_activities(request):
             if _is_blank(row.get('Disbursed Amount')):
                 disbursed = 0
 
-            if not status_name:
-                errors.append(f'Row {row_num}: missing Implementation Status')
-                continue
+            if _is_blank(status_name):
+                if not default_status:
+                    errors.append(
+                        f'Row {row_num}: missing Implementation Status. '
+                        'Ask the system admin to add "Not Implemented" status and re-upload.'
+                    )
+                    logger.warning('Upload row %s skipped: missing Implementation Status and default is missing', row_num)
+                    continue
+                status = default_status
+            else:
+                status_name = _normalize_text(status_name)
+                status_key = _normalize_key(status_name)
+                status = status_map.get(status_key)
+                if not status:
+                    errors.append(
+                        f'Row {row_num}: invalid Status "{status_name}". '
+                        'Ask the system admin to add this status and re-upload.'
+                    )
+                    logger.warning('Upload row %s skipped: invalid Status "%s"', row_num, status_name)
+                    continue
             # Cluster and Funder may be blank at planning stage; handle gracefully
-
-            # Resolve status
-            try:
-                status = ActivityStatus.objects.get(name=status_name)
-            except Exception:
-                errors.append(f'Row {row_num}: invalid Status "{status_name}"')
-                continue
 
             # Resolve clusters (support multiple) - skip if blank
             cluster_objs = []
@@ -374,6 +443,7 @@ def upload_activities(request):
                             c = Cluster.objects.create(short_name=short, full_name=p)
                         else:
                             errors.append(f'Row {row_num}: unknown Cluster "{p}" - please confirm creation in the staging view')
+                            logger.warning('Upload row %s unknown Cluster "%s"', row_num, p)
                             c = None
                     if c:
                         cluster_objs.append(c)
@@ -400,6 +470,7 @@ def upload_activities(request):
                             f = Funder.objects.create(code=code, name=p, active=True)
                         else:
                             errors.append(f'Row {row_num}: unknown Funder "{p}" - please confirm creation in the staging view')
+                            logger.warning('Upload row %s unknown Funder "%s"', row_num, p)
                             f = None
                     if f:
                         funder_objs.append(f)
@@ -411,9 +482,11 @@ def upload_activities(request):
                     planned_month = parsed
                 else:
                     errors.append(f'Row {row_num}: invalid date format for "{planned}"')
+                    logger.warning('Upload row %s skipped: invalid date format "%s"', row_num, planned)
                     continue
             if not planned_month:
                 errors.append(f'Row {row_num}: Planned Implementation Month is required')
+                logger.warning('Upload row %s skipped: Planned Implementation Month is required', row_num)
                 continue
 
             activity_year = planned_month.year
@@ -427,6 +500,7 @@ def upload_activities(request):
                     total_budget = 0
             except (ValueError, AttributeError):
                 errors.append(f'Row {row_num}: invalid budget amount "{budget}"')
+                logger.warning('Upload row %s skipped: invalid budget amount "%s"', row_num, budget)
                 continue
 
             disbursed = row.get('Disbursed Amount')
@@ -501,8 +575,10 @@ def upload_activities(request):
                     created += 1
             except ValidationError as ve:
                 errors.append(f'Row {row_num}: validation error: {ve.message_dict if hasattr(ve, "message_dict") else ve}')
+                logger.exception('Upload row %s validation error', row_num)
             except Exception as e:
                 errors.append(f'Row {row_num}: failed to process activity: {e}')
+                logger.exception('Upload row %s failed to process activity', row_num)
 
         return created, updated, skipped, errors
 
@@ -531,10 +607,24 @@ def upload_activities(request):
         create_funders = request.POST.getlist('create_funder')
         create_clusters = request.POST.getlist('create_cluster')
 
+        keep_staged = False
         try:
             df = _read_dataframe(temp_path, original_name)
             df = _normalize_columns(df)
-            created, updated, skipped, errors = _process_dataframe(df, request.user, user_decisions, create_funders=create_funders, create_clusters=create_clusters)
+            summary = _summarize(df)
+
+            if summary.get('unknown_statuses') or summary.get('default_status_missing'):
+                context['errors'].append(
+                    'Upload blocked: one or more statuses are not in Activity Status. '
+                    'Ask the system admin to add the missing statuses and re-upload.'
+                )
+                context.update({'summary': summary, 'staged_file': original_name})
+                keep_staged = True
+                return render(request, 'uploads/upload.html', context)
+
+            created, updated, skipped, errors = _process_dataframe(
+                df, request.user, user_decisions, create_funders=create_funders, create_clusters=create_clusters
+            )
             
             # pick a batch year from most common year or fallback to current
             years = df['Planned Implementation Month'].dropna().apply(lambda x: pd.to_datetime(x, errors='coerce').year)
@@ -556,10 +646,12 @@ def upload_activities(request):
             
             if errors:
                 messages.warning(request, f'Upload completed with {len(errors)} error(s). Please review.')
+                logger.warning('Upload completed with %s errors. Sample: %s', len(errors), errors[:10])
         finally:
-            if temp_path and os.path.exists(temp_path):
-                os.remove(temp_path)
-            request.session.pop('upload_staged', None)
+            if not keep_staged:
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
+                request.session.pop('upload_staged', None)
 
         return redirect('activities_list')
 

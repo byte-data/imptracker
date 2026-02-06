@@ -142,12 +142,19 @@
               <h6 class="card-subtitle mb-3 text-info">
                 <i class="bi bi-flag me-2"></i>Statuses
               </h6>
-              {% if summary.statuses %}
+              {% if summary.status_checks %}
                 <ul class="list-unstyled mb-0">
-                  {% for s,count in summary.statuses %}
+                  {% for item in summary.status_checks %}
                     <li class="d-flex justify-content-between align-items-center py-1">
-                      <span>{{ s }}</span>
-                      <span class="badge bg-info">{{ count }}</span>
+                      <span>
+                        {% if item.valid %}
+                          <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        {% else %}
+                          <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                        {% endif %}
+                        {{ item.name }}
+                      </span>
+                      <span class="badge bg-info">{{ item.count }}</span>
                     </li>
                   {% endfor %}
                 </ul>
@@ -158,6 +165,25 @@
           </div>
         </div>
       </div>
+
+      {% if summary.unknown_statuses or summary.default_status_missing %}
+        <div class="alert alert-danger d-flex align-items-start">
+          <i class="bi bi-exclamation-octagon me-2 mt-1"></i>
+          <div>
+            <h6 class="alert-heading mb-1">Upload blocked: Unknown status values</h6>
+            <p class="mb-1">Ask the system admin to add the missing status values in Activity Status, or use any of the existing status values listed below.</p>
+            {% if summary.unknown_statuses %}
+              <div class="small text-muted">Missing: {{ summary.unknown_statuses|join:", " }}</div>
+            {% endif %}
+            {% if summary.available_statuses %}
+              <div class="small text-muted">Available: {{ summary.available_statuses|join:", " }}</div>
+            {% endif %}
+            {% if summary.default_status_missing %}
+              <div class="small text-muted">"Not Implemented" status is required for empty/blank statuses.</div>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
 
       {% if summary.duplicates or summary.updates %}
         <div class="alert alert-warning d-flex align-items-start">
@@ -310,7 +336,7 @@
           {% endif %}
 
           <div class="d-flex justify-content-between align-items-center mt-4">
-            <button type="submit" class="btn btn-success" id="submitBtn">
+            <button type="submit" class="btn btn-success" id="submitBtn" {% if summary.unknown_statuses or summary.default_status_missing %}disabled{% endif %}>
               <i class="bi bi-check-circle me-2"></i>Confirm & Load Activities
             </button>
             <a href="{% url 'upload_activities' %}" class="btn btn-outline-secondary">
@@ -333,7 +359,6 @@
             
             if (hasEmpty) {
               e.preventDefault();
-              alert('Please review and select an action for all flagged activities before proceeding.');
               return false;
             }
 
@@ -352,7 +377,6 @@
             }
             if (missingConfirm) {
               e.preventDefault();
-              alert('Please confirm creation of unknown funders/clusters by checking the boxes.');
               return false;
             }
           });
@@ -394,7 +418,7 @@
               </div>
             </div>
           {% endif %}
-          <button type="submit" class="btn btn-success">
+          <button type="submit" class="btn btn-success" {% if summary.unknown_statuses or summary.default_status_missing %}disabled{% endif %}>
             <i class="bi bi-check-circle me-2"></i>Load Activities
           </button>
         </form>
@@ -407,7 +431,6 @@
               unknowns.forEach(function(ch){ if (ch.checked) anyChecked = true; });
               if (!anyChecked) {
                 e.preventDefault();
-                alert('Please confirm creation of unknown funders/clusters by checking the boxes.');
               }
             }
           });
